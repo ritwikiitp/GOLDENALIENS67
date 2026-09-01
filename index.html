@@ -227,6 +227,11 @@
             box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
         }
 
+        .btn-exit-vr {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+
         /* Active Item Floating Notification */
         #grab-banner {
             position: absolute;
@@ -278,7 +283,7 @@
             background: #000;
         }
 
-        /* Cinematic Slow-Mo Banner */
+        /* Cinematic Slow-Mo Banner (2D Screen) */
         #slowmo-tag {
             position: absolute;
             top: 85px;
@@ -303,7 +308,7 @@
             100% { transform: translateX(-50%) scale(1.05); opacity: 1; }
         }
 
-        /* Red Blood Screen Overlay on Punished State */
+        /* Red Blood Screen Overlay on Punished State (2D) */
         #blood-overlay {
             position: absolute;
             top: 0;
@@ -334,7 +339,7 @@
             40%, 60% { transform: translate3d(7px, 6px, 0) rotate(1.4deg); }
         }
 
-        /* Success Confetti Animation Class */
+        /* Success Toast Notification */
         .reward-toast {
             position: absolute;
             top: 25%;
@@ -378,14 +383,18 @@
             }
 
             init() {
-                if (!this.ctx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) {
-                        this.ctx = new AudioCtx();
+                try {
+                    if (!this.ctx) {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) {
+                            this.ctx = new AudioCtx();
+                        }
                     }
-                }
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume();
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume().catch(() => {});
+                    }
+                } catch (e) {
+                    console.warn("AudioContext init warning:", e);
                 }
             }
 
@@ -395,142 +404,25 @@
                 this.init();
                 if (!this.ctx) return;
 
+                const t = this.ctx.currentTime;
                 const notes = [523.25, 659.25, 783.99, 1046.50];
                 notes.forEach((freq, i) => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (i * 0.08));
+                    osc.frequency.setValueAtTime(freq, t + (i * 0.08));
 
-                    gain.gain.setValueAtTime(0, this.ctx.currentTime + (i * 0.08));
-                    gain.gain.linearRampToValueAtTime(0.25, this.ctx.currentTime + (i * 0.08) + 0.03);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + (i * 0.08) + 0.6);
+                    gain.gain.setValueAtTime(0, t + (i * 0.08));
+                    gain.gain.linearRampToValueAtTime(0.3, t + (i * 0.08) + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + (i * 0.08) + 0.6);
 
                     osc.connect(gain);
                     gain.connect(this.ctx.destination);
 
-                    osc.start(this.ctx.currentTime + (i * 0.08));
-                    osc.stop(this.ctx.currentTime + (i * 0.08) + 0.65);
+                    osc.start(t + (i * 0.08));
+                    osc.stop(t + (i * 0.08) + 0.65);
                 });
-            }
-
-            // Item drop thud into bin
-            playItemDrop() {
-                if (!this.enabled) return;
-                this.init();
-                if (!this.ctx) return;
-
-                const t = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(220, t);
-                osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
-
-                gain.gain.setValueAtTime(0.4, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(t);
-                osc.stop(t + 0.2);
-            }
-
-            // Heavy Footstep thud for NPC approach
-            playFootstep() {
-                if (!this.enabled) return;
-                this.init();
-                if (!this.ctx) return;
-
-                const t = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(90, t);
-                osc.frequency.exponentialRampToValueAtTime(35, t + 0.12);
-
-                gain.gain.setValueAtTime(0.35, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(t);
-                osc.stop(t + 0.16);
-            }
-
-            // Dramatic Slow-Mo Whoosh
-            playSlowMoWindup() {
-                if (!this.enabled) return;
-                this.init();
-                if (!this.ctx) return;
-
-                const t = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const filter = this.ctx.createBiquadFilter();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(280, t);
-                osc.frequency.exponentialRampToValueAtTime(70, t + 1.2);
-
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(800, t);
-                filter.frequency.linearRampToValueAtTime(150, t + 1.2);
-
-                gain.gain.setValueAtTime(0.01, t);
-                gain.gain.linearRampToValueAtTime(0.3, t + 0.4);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.25);
-
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(t);
-                osc.stop(t + 1.3);
-            }
-
-            // Heavy Punch Impact (Sub-bass thud + punch crack)
-            playPunch() {
-                if (!this.enabled) return;
-                this.init();
-                if (!this.ctx) return;
-
-                const t = this.ctx.currentTime;
-
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(220, t);
-                osc.frequency.exponentialRampToValueAtTime(25, t + 0.5);
-
-                gain.gain.setValueAtTime(0.9, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(t);
-                osc.stop(t + 0.55);
-
-                // Noise crack for impact
-                const bufferSize = this.ctx.sampleRate * 0.2;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.04));
-                }
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const noiseGain = this.ctx.createGain();
-                noiseGain.gain.setValueAtTime(0.6, t);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-
-                noise.connect(noiseGain);
-                noiseGain.connect(this.ctx.destination);
-                noise.start(t);
             }
 
             // Immediate harsh Error Buzzer (Wrong Bin selected)
@@ -540,20 +432,20 @@
                 if (!this.ctx) return;
 
                 const t = this.ctx.currentTime;
-                [0, 0.14].forEach(offset => {
+                [0, 0.15].forEach(offset => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(160, t + offset);
-                    osc.frequency.linearRampToValueAtTime(90, t + offset + 0.11);
+                    osc.frequency.setValueAtTime(170, t + offset);
+                    osc.frequency.linearRampToValueAtTime(80, t + offset + 0.12);
 
-                    gain.gain.setValueAtTime(0.45, t + offset);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.12);
+                    gain.gain.setValueAtTime(0.5, t + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.13);
 
                     osc.connect(gain);
                     gain.connect(this.ctx.destination);
                     osc.start(t + offset);
-                    osc.stop(t + offset + 0.13);
+                    osc.stop(t + offset + 0.14);
                 });
             }
 
@@ -568,7 +460,7 @@
                     { freq: 392.00, time: 0, dur: 0.25 },     // G4
                     { freq: 369.99, time: 0.28, dur: 0.25 },  // F#4
                     { freq: 349.23, time: 0.56, dur: 0.25 },  // F4
-                    { freq: 329.63, time: 0.84, dur: 0.85, slideTo: 110 } // E4 sliding down
+                    { freq: 329.63, time: 0.84, dur: 0.95, slideTo: 100 } // E4 sliding down into deep pit
                 ];
 
                 notes.forEach(n => {
@@ -584,9 +476,9 @@
 
                     filter.type = 'lowpass';
                     filter.frequency.setValueAtTime(1200, t + n.time);
-                    filter.frequency.linearRampToValueAtTime(300, t + n.time + n.dur);
+                    filter.frequency.linearRampToValueAtTime(280, t + n.time + n.dur);
 
-                    gain.gain.setValueAtTime(0.35, t + n.time);
+                    gain.gain.setValueAtTime(0.4, t + n.time);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
 
                     osc.connect(filter);
@@ -617,11 +509,11 @@
 
                     filter.type = 'lowpass';
                     filter.frequency.setValueAtTime(250, t);
-                    filter.frequency.exponentialRampToValueAtTime(1900, t + 1.8);
-                    filter.frequency.exponentialRampToValueAtTime(350, t + 4.2);
+                    filter.frequency.exponentialRampToValueAtTime(2000, t + 1.8);
+                    filter.frequency.exponentialRampToValueAtTime(320, t + 4.2);
 
                     gain.gain.setValueAtTime(0.001, t);
-                    gain.gain.linearRampToValueAtTime(0.28 / spaceFreqs.length * 2, t + 0.8);
+                    gain.gain.linearRampToValueAtTime(0.35 / spaceFreqs.length * 2, t + 0.8);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + 4.5);
 
                     osc.connect(filter);
@@ -631,6 +523,124 @@
                     osc.start(t);
                     osc.stop(t + 4.6);
                 });
+            }
+
+            // Item drop thud into bin
+            playItemDrop() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, t);
+                osc.frequency.exponentialRampToValueAtTime(55, t + 0.15);
+
+                gain.gain.setValueAtTime(0.45, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            }
+
+            // Heavy Footstep thud for NPC approach
+            playFootstep() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(95, t);
+                osc.frequency.exponentialRampToValueAtTime(30, t + 0.12);
+
+                gain.gain.setValueAtTime(0.4, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.16);
+            }
+
+            // Dramatic Slow-Mo Whoosh
+            playSlowMoWindup() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const filter = this.ctx.createBiquadFilter();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(280, t);
+                osc.frequency.exponentialRampToValueAtTime(65, t + 1.2);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(850, t);
+                filter.frequency.linearRampToValueAtTime(140, t + 1.2);
+
+                gain.gain.setValueAtTime(0.01, t);
+                gain.gain.linearRampToValueAtTime(0.35, t + 0.4);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.25);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(t);
+                osc.stop(t + 1.3);
+            }
+
+            // Heavy Punch Impact (Sub-bass thud + punch crack)
+            playPunch() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(240, t);
+                osc.frequency.exponentialRampToValueAtTime(25, t + 0.5);
+
+                gain.gain.setValueAtTime(0.95, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.55);
+
+                // Noise crack for impact
+                const bufferSize = this.ctx.sampleRate * 0.2;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.04));
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.65, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+
+                noise.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
+                noise.start(t);
             }
 
             // Multi-Stage Space Launch Whoosh & Atmospheric Sound
@@ -647,7 +657,7 @@
                 osc.frequency.exponentialRampToValueAtTime(1100, t + 4.5);
 
                 gain.gain.setValueAtTime(0.01, t);
-                gain.gain.linearRampToValueAtTime(0.35, t + 1.5);
+                gain.gain.linearRampToValueAtTime(0.4, t + 1.5);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 4.8);
 
                 osc.connect(gain);
@@ -669,7 +679,7 @@
                 osc.frequency.setValueAtTime(360, t);
                 osc.frequency.exponentialRampToValueAtTime(750, t + 0.08);
 
-                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.setValueAtTime(0.35, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
                 osc.connect(gain);
@@ -687,7 +697,7 @@
                         utterance.pitch = 0.85;
                         window.speechSynthesis.speak(utterance);
                     } catch (e) {
-                        console.warn("SpeechSynthesis error:", e);
+                        // Ignore if speech synthesis not available on headset
                     }
                 }
             }
@@ -715,12 +725,23 @@
             }
         }
 
-        // Global gesture listener to unlock AudioContext in VR & Mobile
+        // Global gesture listeners to unlock AudioContext in VR & Browser
         ['click', 'pointerdown', 'touchstart', 'keydown'].forEach(evtType => {
             window.addEventListener(evtType, () => {
                 if (window.soundEngine) window.soundEngine.init();
             }, { once: false, passive: true });
         });
+
+        // Exit VR / Fullscreen helper
+        function exitVRMode() {
+            if (window.soundEngine) window.soundEngine.playPop();
+            const scene = document.querySelector('a-scene');
+            if (scene && scene.is('vr-mode')) {
+                scene.exitVR();
+            } else if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
     </script>
 
     <!-- Game Logic & A-Frame WebXR Interactive Components -->
@@ -1049,7 +1070,6 @@
             },
 
             animateItemDropIntoBin: function (heldEl, wasteData) {
-                // Detach from camera anchor and position above bin opening
                 const binWorldPos = this.el.getAttribute('position');
                 const container = document.getElementById('ground-environment');
                 
@@ -1062,16 +1082,13 @@
                 // Smooth gravity drop into bin cylinder
                 heldEl.setAttribute('animation__drop', `property: position; to: ${binWorldPos.x} ${binWorldPos.y + 0.3} ${binWorldPos.z}; dur: 320; easing: easeInQuad`);
 
-                // Drop sound
                 setTimeout(() => {
                     window.soundEngine.playItemDrop();
                     triggerHaptic(0.4, 70);
 
-                    // Snap lid shut
                     const lid = this.el.querySelector('.bin-lid');
                     if (lid) lid.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 140; easing: easeInQuad');
 
-                    // Clean up and evaluate
                     setTimeout(() => {
                         this.evaluateDeposit(heldEl, wasteData);
                     }, 120);
@@ -1143,12 +1160,12 @@
                 window.soundEngine.playWrongBuzzer();
                 setTimeout(() => window.soundEngine.playFail(), 220);
 
-                // Human Officer approach & 3rd person slow-mo punch cinematic
+                // Human Officer approach & slow-mo punch highlight cinematic
                 startPunishmentSequence(wasteData, this.data.binName);
             }
         });
 
-        // Interactive VR Retry Button Component
+        // Interactive VR Buttons
         AFRAME.registerComponent('vr-retry-button', {
             init: function () {
                 const el = this.el;
@@ -1156,56 +1173,67 @@
                     el.setAttribute('scale', '1.1 1.1 1.1');
                     triggerHaptic(0.2, 30);
                 });
-                el.addEventListener('mouseleave', () => {
-                    el.setAttribute('scale', '1 1 1');
-                });
-                el.addEventListener('click', () => {
-                    resetToEarth();
-                });
+                el.addEventListener('mouseleave', () => el.setAttribute('scale', '1 1 1'));
+                el.addEventListener('click', () => resetToEarth());
             }
         });
 
-        // CINEMATIC DRAMATIC SEQUENCE: Officer Walk -> 3rd-Person Slow-Mo Punch -> Multi-Stage Space Launch
+        AFRAME.registerComponent('vr-exit-button', {
+            init: function () {
+                const el = this.el;
+                el.addEventListener('mouseenter', () => {
+                    el.setAttribute('scale', '1.1 1.1 1.1');
+                    triggerHaptic(0.2, 30);
+                });
+                el.addEventListener('mouseleave', () => el.setAttribute('scale', '1 1 1'));
+                el.addEventListener('click', () => exitVRMode());
+            }
+        });
+
+        // CINEMATIC DRAMATIC SEQUENCE: Officer Walk -> Slow-Mo Highlight Punch -> Multi-Stage Space Launch
         function startPunishmentSequence(wrongItem, wrongBinName) {
             const officerNpc = document.getElementById('human-officer-npc');
             const officerComp = officerNpc ? officerNpc.components['human-officer-ai'] : null;
             const rightGlove = document.getElementById('officer-boxing-glove');
             const playerAvatar = document.getElementById('player-3rd-person-avatar');
             const shockwave = document.getElementById('punch-shockwave');
-            const headCamera = document.getElementById('head-camera');
             const cameraRig = document.getElementById('camera-rig');
             const cinematicBars = document.getElementById('cinematic-bars');
             const slowMoTag = document.getElementById('slowmo-tag');
+            const vrSlowMoTag = document.getElementById('vr-slowmo-3d-tag');
+            const vrBloodDome = document.getElementById('vr-blood-dome');
 
-            // Speak stern dialogue
-            window.soundEngine.speakVoice("Halt citizen! That belongs in a completely different bin!");
+            const sceneEl = document.querySelector('a-scene');
+            const isInVR = sceneEl && sceneEl.is('vr-mode');
 
-            // Step 1: Officer spawns at distance (8m away) and marches forward slowly
+            // Step 1: Officer spawns at distance (7.5m away) and marches forward slowly
             if (officerNpc) {
                 officerNpc.setAttribute('visible', 'true');
                 officerNpc.setAttribute('position', '0 0 -7.5');
                 officerNpc.setAttribute('rotation', '0 0 0');
                 if (officerComp) officerComp.startWalking();
 
-                // Smooth suspenseful walk over 3.2 seconds
-                officerNpc.setAttribute('animation__approach', 'property: position; to: 0 0 -1.6; dur: 3200; easing: easeOutQuad');
+                // Smooth suspenseful walk over 3.0 seconds straight toward player table
+                officerNpc.setAttribute('animation__approach', 'property: position; to: 0 0 -1.5; dur: 3000; easing: easeOutQuad');
             }
 
-            // Step 2: When officer arrives (at 3.2s) -> Switch to 3rd-Person Matrix-Style Slow-Motion View!
+            // Step 2: Officer arrives at table -> Trigger Slow-Motion Highlight
             setTimeout(() => {
                 if (officerComp) officerComp.stopWalking();
 
-                // Enable Letterbox & Slow-mo tag
-                if (cinematicBars) cinematicBars.classList.add('active');
-                if (slowMoTag) slowMoTag.style.display = 'block';
+                // Show 3D in-world slow-motion banner (works in VR and Desktop)
+                if (vrSlowMoTag) vrSlowMoTag.setAttribute('visible', 'true');
 
-                // Make Player Avatar visible in 3rd person
-                if (playerAvatar) playerAvatar.setAttribute('visible', 'true');
+                if (!isInVR) {
+                    // On 2D desktop screen: show 3rd person side camera and letterbox bars
+                    if (cinematicBars) cinematicBars.classList.add('active');
+                    if (slowMoTag) slowMoTag.style.display = 'block';
+                    if (playerAvatar) playerAvatar.setAttribute('visible', 'true');
 
-                // Move Camera to dramatic 3rd-person side angle
-                if (cameraRig) {
-                    cameraRig.setAttribute('position', '2.2 1.5 -1.2');
-                    cameraRig.setAttribute('rotation', '-5 55 0');
+                    if (cameraRig) {
+                        cameraRig.setAttribute('position', '2.2 1.5 -1.2');
+                        cameraRig.setAttribute('rotation', '-5 55 0');
+                    }
                 }
 
                 // Slow-Motion Wind-Up Audio & Glove Pullback
@@ -1213,50 +1241,56 @@
 
                 if (rightGlove) {
                     // Officer winds up punch in slow-mo
-                    rightGlove.setAttribute('animation__windup', 'property: position; to: 0.45 1.35 -0.3; dur: 1000; easing: easeOutSine');
+                    rightGlove.setAttribute('animation__windup', 'property: position; to: 0.45 1.35 -0.3; dur: 900; easing: easeOutSine');
                 }
 
-                // Step 3: Unleash Slow-Motion Punch (at +1000ms)
+                // Step 3: Unleash Slow-Motion Punch (at +900ms)
                 setTimeout(() => {
                     if (rightGlove) {
-                        // Glove punches forward in slow motion
+                        // Glove punches forward in slow motion straight to the player
                         rightGlove.setAttribute('animation__punch', 'property: position; to: 0.1 1.45 0.95; dur: 450; easing: easeInQuad');
                     }
 
                     // Punch Impact occurs (at +450ms)
                     setTimeout(() => {
                         window.soundEngine.playPunch();
-                        triggerHaptic(1.0, 500);
+                        triggerHaptic(1.0, 600);
                         document.body.classList.add('shake-screen');
                         setTimeout(() => document.body.classList.remove('shake-screen'), 700);
 
-                        // Red blood vignette
+                        // 2D Red blood vignette
                         const bloodOverlay = document.getElementById('blood-overlay');
                         if (bloodOverlay) bloodOverlay.classList.add('active');
 
-                        // Shockwave Expansion Highlight Ring
+                        // 3D VR Red Blood Dome Flash in Headset
+                        if (vrBloodDome) {
+                            vrBloodDome.setAttribute('visible', 'true');
+                            vrBloodDome.setAttribute('animation__blood', 'property: material.opacity; from: 0.7; to: 0; dur: 800; easing: easeOutQuad');
+                        }
+
+                        // 3D Shockwave Expansion Highlight Ring
                         if (shockwave) {
-                            shockwave.setAttribute('position', '0 1.45 -0.6');
+                            shockwave.setAttribute('position', '0 1.45 -0.7');
                             shockwave.setAttribute('visible', 'true');
                             shockwave.setAttribute('animation__expand', 'property: scale; from: 0.1 0.1 0.1; to: 4 4 4; dur: 600; easing: easeOutQuad');
                             shockwave.setAttribute('animation__fade', 'property: material.opacity; from: 0.9; to: 0; dur: 600; easing: easeOutQuad');
                         }
 
-                        // Player Avatar reacts with recoil and flies upward
-                        if (playerAvatar) {
+                        // Player Avatar reacts on desktop
+                        if (playerAvatar && !isInVR) {
                             playerAvatar.setAttribute('animation__recoil', 'property: rotation; to: -40 10 20; dur: 400; easing: easeOutQuad');
                             playerAvatar.setAttribute('animation__fly', 'property: position; to: 0 45 8; dur: 2200; easing: easeInQuad');
                         }
 
                         // Step 4: Transition to Multi-Stage Atmospheric Space Flight
                         setTimeout(() => {
-                            // Turn off 3rd person avatar & cinematic bars
                             if (cinematicBars) cinematicBars.classList.remove('active');
                             if (slowMoTag) slowMoTag.style.display = 'none';
+                            if (vrSlowMoTag) vrSlowMoTag.setAttribute('visible', 'false');
                             if (playerAvatar) playerAvatar.setAttribute('visible', 'false');
                             if (shockwave) shockwave.setAttribute('visible', 'false');
 
-                            // Reset Rig orientation and attach to upward flight
+                            // Reset Rig orientation for space ascent
                             if (cameraRig) {
                                 cameraRig.setAttribute('rotation', '0 0 0');
                                 cameraRig.setAttribute('position', '0 1.6 0');
@@ -1265,13 +1299,13 @@
                             // Start multi-stage space launch
                             executeMultiStageSpaceLaunch(wrongItem, wrongBinName);
 
-                        }, 700);
+                        }, 600);
 
                     }, 450);
 
-                }, 1000);
+                }, 900);
 
-            }, 3200);
+            }, 3000);
         }
 
         // Multi-Stage Ascent from Ground Plaza -> Clouds -> Stratosphere -> Deep Orbit
@@ -1290,18 +1324,18 @@
             // Play Atmospheric Rocket / Wind Whoosh
             window.soundEngine.playAtmosphericLaunch();
 
-            // Phase 1 (0 to 1.5s): Shoot up through clouds to 50m
+            // Phase 1 (0 to 1.6s): Shoot up through clouds to 55m
             if (cameraRig) {
-                cameraRig.setAttribute('animation__launch1', 'property: position; to: 0 60 -1; dur: 1800; easing: easeInQuad');
+                cameraRig.setAttribute('animation__launch1', 'property: position; to: 0 55 -1; dur: 1600; easing: easeInQuad');
             }
 
-            // Phase 2 (1.8s): Stratosphere darkening (Sky shifts from Cyan to Dark Indigo)
+            // Phase 2 (1.6s): Stratosphere darkening (Sky shifts from Cyan to Dark Indigo)
             setTimeout(() => {
                 if (skyDome) {
                     skyDome.setAttribute('animation__darken', 'property: color; from: #0f172a; to: #020617; dur: 1400; easing: easeInOutQuad');
                 }
 
-                // Phase 3 (3.0s): Ascend into Deep Space Orbit (170m)
+                // Phase 3 (2.8s): Ascend into Deep Space Orbit (170m)
                 if (cameraRig) {
                     cameraRig.setAttribute('animation__launch2', 'property: position; to: 0 170 -6; dur: 2200; easing: easeOutQuad');
                 }
@@ -1318,14 +1352,14 @@
 
                 }, 2200);
 
-            }, 1800);
+            }, 1600);
         }
 
         // Render failure dialogue and Try Again options
         function showPunishmentFeedback(wrongItem, wrongBinName) {
             // Play dramatic space arrival failure sound and voiceover
             window.soundEngine.playSpaceArrival();
-            window.soundEngine.speakVoice("You are not worthy to live on Planet Earth! Critical civic sense failure! You put " + wrongItem.name + " into " + wrongBinName);
+            window.soundEngine.speakVoice("You are not worthy to live on Planet Earth! Critical civic sense failure!");
 
             const vrFailBoard = document.getElementById('vr-failure-board');
             if (vrFailBoard) {
@@ -1364,6 +1398,9 @@
 
             const vrFailBoard = document.getElementById('vr-failure-board');
             if (vrFailBoard) vrFailBoard.setAttribute('visible', 'false');
+
+            const vrBloodDome = document.getElementById('vr-blood-dome');
+            if (vrBloodDome) vrBloodDome.setAttribute('visible', 'false');
 
             const cameraRig = document.getElementById('camera-rig');
             const spaceSky = document.getElementById('space-sky');
@@ -1556,6 +1593,10 @@
                     <div class="stat-label">Streak</div>
                     <div class="stat-value green" id="hud-streak">0x</div>
                 </div>
+                <!-- 2D Exit VR / Fullscreen Button -->
+                <button class="btn btn-exit-vr" onclick="exitVRMode()" style="padding: 6px 12px; font-size: 0.75rem;">
+                    🚪 Exit VR
+                </button>
             </div>
         </div>
 
@@ -1593,14 +1634,14 @@
         </div>
     </div>
 
-    <!-- Cinematic Slow-Motion Letterbox Bars & Tag -->
+    <!-- Cinematic Slow-Motion Letterbox Bars & Tag (2D) -->
     <div id="cinematic-bars">
         <div class="cinematic-bar"></div>
         <div class="cinematic-bar"></div>
     </div>
     <div id="slowmo-tag">⏱️ SLOW MOTION HIGHLIGHT</div>
 
-    <!-- Blood / Punished Vignette Screen Overlay -->
+    <!-- Blood / Punished Vignette Screen Overlay (2D) -->
     <div id="blood-overlay"></div>
 
     <!-- 2D Punishment & Educational Modal (Overlayed in space on 2D screens) -->
@@ -1617,9 +1658,14 @@
             </div>
         </div>
 
-        <button class="btn btn-restart" style="width: 100%; justify-content: center; font-size: 1.05rem; padding: 12px;" onclick="resetToEarth()">
-            🌍 Return to Earth & Try Again
-        </button>
+        <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button class="btn btn-restart" style="flex: 2; justify-content: center; font-size: 1.05rem; padding: 12px;" onclick="resetToEarth()">
+                🌍 Return to Earth & Retry
+            </button>
+            <button class="btn btn-exit-vr" style="flex: 1; justify-content: center; font-size: 0.95rem; padding: 12px;" onclick="exitVRMode()">
+                🚪 Exit VR
+            </button>
+        </div>
     </div>
 
     <!-- WebXR A-FRAME 3D SCENE -->
@@ -1634,6 +1680,9 @@
             <a-camera id="head-camera" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 18">
                 <!-- Anchor for holding items attached to player view -->
                 <a-entity id="player-held-anchor" position="0.3 -0.28 -0.85"></a-entity>
+
+                <!-- In-Headset 3D Blood Vignette Flash (Visible in Meta Quest VR) -->
+                <a-sphere id="vr-blood-dome" visible="false" radius="0.3" material="color: #ef4444; opacity: 0; side: back; shader: flat; transparent: true"></a-sphere>
             </a-camera>
 
             <!-- Meta Quest VR Controllers (Laser Pointers & Grasping) -->
@@ -1697,6 +1746,12 @@
                 <a-cylinder position="-1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-cylinder position="1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-text value="AIM & CLICK ITEMS TO PICK UP ➔ CLICK BIN TO SORT" position="0 0.92 0.4" rotation="-60 0 0" align="center" width="2.6" color="#94a3b8" font="mozillavr"></a-text>
+
+                <!-- In-World 3D EXIT VR Button on Table -->
+                <a-entity id="vr-table-exit-btn" class="clickable" position="1.3 1.0 0.2" vr-exit-button>
+                    <a-box width="0.45" height="0.2" depth="0.08" color="#ef4444"></a-box>
+                    <a-text value="EXIT VR" position="0 0 0.05" align="center" width="1.8" color="#ffffff" font="mozillavr"></a-text>
+                </a-entity>
             </a-entity>
 
             <!-- 4 COLOR-CODED DUSTBINS STATION WITH COLLIDERS -->
@@ -1777,12 +1832,12 @@
             </a-entity>
         </a-entity>
 
-        <!-- 3D PLAYER AVATAR (Visible during 3rd-Person Cinematic Slow-Mo Punch) -->
+        <!-- 3D PLAYER AVATAR (Visible during 3rd-Person Cinematic on 2D Desktop) -->
         <a-entity id="player-3rd-person-avatar" visible="false" position="0 0 -0.85">
             <!-- Player Head -->
             <a-sphere position="0 1.65 0" radius="0.18" color="#fbcfe8"></a-sphere>
-            <a-sphere position="0 1.76 -0.02" radius="0.19" color="#475569"></a-sphere> <!-- Hair -->
-            <!-- Player Torso (Casual Hoodie) -->
+            <a-sphere position="0 1.76 -0.02" radius="0.19" color="#475569"></a-sphere>
+            <!-- Player Torso -->
             <a-box position="0 1.25 0" width="0.46" height="0.6" depth="0.26" color="#0284c7"></a-box>
             <!-- Player Arms -->
             <a-cylinder position="-0.3 1.2 0" radius="0.07" height="0.5" color="#0369a1"></a-cylinder>
@@ -1795,6 +1850,12 @@
         <!-- STYLIZED HUMAN 3D CIVIC SENSE OFFICER NPC -->
         <a-entity id="human-officer-npc" visible="false" position="0 0 -7.5" human-officer-ai>
             
+            <!-- In-World 3D Slow-Motion Highlight Banner (Visible inside VR Headset!) -->
+            <a-entity id="vr-slowmo-3d-tag" visible="false" position="0 2.35 0">
+                <a-box width="2.4" height="0.4" depth="0.06" color="#ef4444" material="shader: flat"></a-box>
+                <a-text value="SLOW MOTION HIGHLIGHT" position="0 0 0.04" align="center" width="3.2" color="#ffffff" font="mozillavr"></a-text>
+            </a-entity>
+
             <!-- OFFICER TORSO & UNIFORM -->
             <a-entity class="officer-torso" position="0 0.85 0">
                 <!-- Shirt / Jacket -->
@@ -1852,15 +1913,13 @@
             </a-entity>
 
             <!-- LEGS & BOOTS -->
-            <!-- Left Leg -->
             <a-entity class="officer-left-leg" position="-0.16 0.85 0">
                 <a-cylinder position="0 -0.4 0" radius="0.1" height="0.8" color="#1e293b"></a-cylinder>
-                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box> <!-- Boot -->
+                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box>
             </a-entity>
-            <!-- Right Leg -->
             <a-entity class="officer-right-leg" position="0.16 0.85 0">
                 <a-cylinder position="0 -0.4 0" radius="0.1" height="0.8" color="#1e293b"></a-cylinder>
-                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box> <!-- Boot -->
+                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box>
             </a-entity>
         </a-entity>
 
@@ -1909,23 +1968,50 @@
 
         <!-- IN-WORLD 3D VR FAILURE BOARD (Visible in Space for Quest VR & Desktop) -->
         <a-entity id="vr-failure-board" visible="false" position="0 170 -10">
-            <a-box width="7.5" height="4.5" depth="0.1" color="#0f172a" material="opacity: 0.95" position="0 0 0"></a-box>
-            <a-box width="7.7" height="4.7" depth="0.05" color="#ef4444" position="0 0 -0.05"></a-box>
+            <a-box width="7.5" height="4.8" depth="0.1" color="#0f172a" material="opacity: 0.95" position="0 0 0"></a-box>
+            <a-box width="7.7" height="5.0" depth="0.05" color="#ef4444" position="0 0 -0.05"></a-box>
 
-            <a-text id="vr-fail-title" value="YOU ARE NOT WORTHY TO LIVE ON EARTH!" position="0 1.6 0.1" align="center" width="7" color="#ef4444" font="mozillavr"></a-text>
-            <a-text id="vr-fail-desc" value="CRITICAL CIVIC FAILURE:\nYou put item into the wrong bin!" position="0 0.6 0.1" align="center" width="5.5" color="#f8fafc" font="mozillavr"></a-text>
-            <a-text id="vr-fail-tip" value="CIVIC SENSE LESSON:\nSegregate properly to protect the environment." position="0 -0.4 0.1" align="center" width="4.8" color="#38bdf8" font="mozillavr"></a-text>
+            <a-text id="vr-fail-title" value="YOU ARE NOT WORTHY TO LIVE ON EARTH!" position="0 1.7 0.1" align="center" width="7" color="#ef4444" font="mozillavr"></a-text>
+            <a-text id="vr-fail-desc" value="CRITICAL CIVIC FAILURE:\nYou put item into the wrong bin!" position="0 0.7 0.1" align="center" width="5.5" color="#f8fafc" font="mozillavr"></a-text>
+            <a-text id="vr-fail-tip" value="CIVIC SENSE LESSON:\nSegregate properly to protect the environment." position="0 -0.3 0.1" align="center" width="4.8" color="#38bdf8" font="mozillavr"></a-text>
 
             <!-- 3D Interactive Return Button -->
-            <a-entity id="vr-try-again-btn" class="clickable" position="0 -1.4 0.15"
-                      geometry="primitive: box; width: 3.4; height: 0.65; depth: 0.15"
+            <a-entity id="vr-try-again-btn" class="clickable" position="-1.4 -1.5 0.15"
+                      geometry="primitive: box; width: 3.2; height: 0.65; depth: 0.15"
                       material="color: #10b981; metalness: 0.3; roughness: 0.4"
                       vr-retry-button>
-                <a-text value="RETURN TO EARTH & RETRY" position="0 0 0.09" align="center" width="4.2" color="#ffffff" font="mozillavr"></a-text>
+                <a-text value="RETURN TO EARTH & RETRY" position="0 0 0.09" align="center" width="3.8" color="#ffffff" font="mozillavr"></a-text>
+            </a-entity>
+
+            <!-- 3D Interactive Exit VR Button in Space -->
+            <a-entity id="vr-exit-space-btn" class="clickable" position="1.9 -1.5 0.15"
+                      geometry="primitive: box; width: 2.2; height: 0.65; depth: 0.15"
+                      material="color: #ef4444; metalness: 0.3; roughness: 0.4"
+                      vr-exit-button>
+                <a-text value="EXIT VR MODE" position="0 0 0.09" align="center" width="3.2" color="#ffffff" font="mozillavr"></a-text>
             </a-entity>
         </a-entity>
 
     </a-scene>
+
+    <!-- Script to hook up WebXR Session audio resume -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sceneEl = document.querySelector('a-scene');
+            if (sceneEl) {
+                sceneEl.addEventListener('enter-vr', () => {
+                    if (window.soundEngine) {
+                        window.soundEngine.init();
+                    }
+                });
+                sceneEl.addEventListener('exit-vr', () => {
+                    if (window.soundEngine) {
+                        window.soundEngine.init();
+                    }
+                });
+            }
+        });
+    </script>
 
 </body>
 
