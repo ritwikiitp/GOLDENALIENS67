@@ -308,7 +308,7 @@
             100% { transform: translateX(-50%) scale(1.05); opacity: 1; }
         }
 
-        /* Red Blood Screen Overlay on Punished State (2D) */
+        /* Red Blood Screen Overlay on Punished State (2D Desktop) */
         #blood-overlay {
             position: absolute;
             top: 0;
@@ -316,11 +316,10 @@
             width: 100vw;
             height: 100vh;
             pointer-events: none;
-            z-index: 1500;
+            z-index: 1200;
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 20%, rgba(185, 28, 28, 0.65) 70%, rgba(127, 29, 29, 0.95) 100%);
-            mix-blend-mode: multiply;
+            transition: opacity 0.3s ease-in-out;
+            background: radial-gradient(circle, transparent 55%, rgba(239, 68, 68, 0.45) 100%);
         }
 
         #blood-overlay.active {
@@ -1258,14 +1257,11 @@
                         document.body.classList.add('shake-screen');
                         setTimeout(() => document.body.classList.remove('shake-screen'), 700);
 
-                        // 2D Red blood vignette
+                        // 2D Red blood vignette (brief flash, automatically clears)
                         const bloodOverlay = document.getElementById('blood-overlay');
-                        if (bloodOverlay) bloodOverlay.classList.add('active');
-
-                        // 3D VR Red Blood Dome Flash in Headset
-                        if (vrBloodDome) {
-                            vrBloodDome.setAttribute('visible', 'true');
-                            vrBloodDome.setAttribute('animation__blood', 'property: material.opacity; from: 0.7; to: 0; dur: 800; easing: easeOutQuad');
+                        if (bloodOverlay) {
+                            bloodOverlay.classList.add('active');
+                            setTimeout(() => bloodOverlay.classList.remove('active'), 750);
                         }
 
                         // 3D Shockwave Expansion Highlight Ring
@@ -1398,9 +1394,6 @@
 
             const vrFailBoard = document.getElementById('vr-failure-board');
             if (vrFailBoard) vrFailBoard.setAttribute('visible', 'false');
-
-            const vrBloodDome = document.getElementById('vr-blood-dome');
-            if (vrBloodDome) vrBloodDome.setAttribute('visible', 'false');
 
             const cameraRig = document.getElementById('camera-rig');
             const spaceSky = document.getElementById('space-sky');
@@ -1680,9 +1673,6 @@
             <a-camera id="head-camera" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 18">
                 <!-- Anchor for holding items attached to player view -->
                 <a-entity id="player-held-anchor" position="0.3 -0.28 -0.85"></a-entity>
-
-                <!-- In-Headset 3D Blood Vignette Flash (Visible in Meta Quest VR) -->
-                <a-sphere id="vr-blood-dome" visible="false" radius="0.3" material="color: #ef4444; opacity: 0; side: back; shader: flat; transparent: true"></a-sphere>
             </a-camera>
 
             <!-- Meta Quest VR Controllers (Laser Pointers & Grasping) -->
@@ -1746,12 +1736,6 @@
                 <a-cylinder position="-1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-cylinder position="1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-text value="AIM & CLICK ITEMS TO PICK UP ➔ CLICK BIN TO SORT" position="0 0.92 0.4" rotation="-60 0 0" align="center" width="2.6" color="#94a3b8" font="mozillavr"></a-text>
-
-                <!-- In-World 3D EXIT VR Button on Table -->
-                <a-entity id="vr-table-exit-btn" class="clickable" position="1.3 1.0 0.2" vr-exit-button>
-                    <a-box width="0.45" height="0.2" depth="0.08" color="#ef4444"></a-box>
-                    <a-text value="EXIT VR" position="0 0 0.05" align="center" width="1.8" color="#ffffff" font="mozillavr"></a-text>
-                </a-entity>
             </a-entity>
 
             <!-- 4 COLOR-CODED DUSTBINS STATION WITH COLLIDERS -->
