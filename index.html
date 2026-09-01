@@ -8,7 +8,7 @@
     <meta name="description"
         content="Learn civic waste segregation in WebXR. Put waste in the right bin to gain eco score, or get punched into outer space by the Civic Sense Enforcer!" />
 
-    <!-- A-Frame WebXR Framework -->
+    <!-- A-Frame WebXR Framework 1.6.0 -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
     <!-- Google Fonts -->
@@ -29,6 +29,7 @@
         * {
             box-sizing: border-box;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
@@ -146,7 +147,7 @@
         }
 
         .guide-box {
-            max-width: 480px;
+            max-width: 520px;
         }
 
         .guide-title {
@@ -186,6 +187,7 @@
             background: rgba(0,0,0,0.3);
             padding: 6px 10px;
             border-radius: 8px;
+            line-height: 1.4;
         }
 
         .hud-buttons {
@@ -228,13 +230,13 @@
         /* Active Item Floating Notification */
         #grab-banner {
             position: absolute;
-            top: 15%;
+            top: 14%;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(15, 23, 42, 0.92);
             border: 2px solid #38bdf8;
             border-radius: 30px;
-            padding: 8px 24px;
+            padding: 10px 26px;
             display: none;
             align-items: center;
             gap: 12px;
@@ -291,7 +293,7 @@
             color: white;
             padding: 16px 36px;
             border-radius: 50px;
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             font-weight: 900;
             box-shadow: 0 10px 40px rgba(16, 185, 129, 0.8), 0 0 30px #34d399;
             z-index: 2000;
@@ -315,7 +317,7 @@
         }
     </style>
 
-    <!-- Custom Sound Engine (Pure Web Audio API Synthesizer - 100% Offline & Reliable) -->
+    <!-- Custom Sound Engine & WebXR Controller Haptic System -->
     <script>
         class SoundEngine {
             constructor() {
@@ -350,7 +352,7 @@
                     osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (i * 0.08));
 
                     gain.gain.setValueAtTime(0, this.ctx.currentTime + (i * 0.08));
-                    gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + (i * 0.08) + 0.03);
+                    gain.gain.linearRampToValueAtTime(0.25, this.ctx.currentTime + (i * 0.08) + 0.03);
                     gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + (i * 0.08) + 0.6);
 
                     osc.connect(gain);
@@ -368,18 +370,17 @@
                 if (!this.ctx) return;
 
                 const t = this.ctx.currentTime;
-                // Sawtooth harsh buzzer
                 const osc = this.ctx.createOscillator();
                 const filter = this.ctx.createBiquadFilter();
                 const gain = this.ctx.createGain();
 
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(320, t);
-                osc.frequency.exponentialRampToValueAtTime(90, t + 1.2); // downward pitch drop (faaaaa...)
+                osc.frequency.exponentialRampToValueAtTime(80, t + 1.2);
 
                 filter.type = 'lowpass';
                 filter.frequency.setValueAtTime(1200, t);
-                filter.frequency.linearRampToValueAtTime(300, t + 1.2);
+                filter.frequency.linearRampToValueAtTime(250, t + 1.2);
 
                 gain.gain.setValueAtTime(0, t);
                 gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
@@ -392,11 +393,10 @@
                 osc.start(t);
                 osc.stop(t + 1.35);
 
-                // Speak voice line if supported
                 this.speakVoice("Civic sense failure! Incorrect bin!");
             }
 
-            // Heavy Punch Impact (Sub-bass thud + punch slap)
+            // Heavy Punch Impact (Sub-bass thud + punch crack)
             playPunch() {
                 if (!this.enabled) return;
                 this.init();
@@ -408,7 +408,7 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(180, t);
+                osc.frequency.setValueAtTime(190, t);
                 osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
 
                 gain.gain.setValueAtTime(0.8, t);
@@ -438,7 +438,7 @@
                 noise.start(t);
             }
 
-            // Rocket / Space Launch Whoosh
+            // Space Launch Whoosh
             playSpaceWhoosh() {
                 if (!this.enabled) return;
                 this.init();
@@ -473,10 +473,10 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(350, t);
-                osc.frequency.exponentialRampToValueAtTime(700, t + 0.08);
+                osc.frequency.setValueAtTime(360, t);
+                osc.frequency.exponentialRampToValueAtTime(750, t + 0.08);
 
-                gain.gain.setValueAtTime(0.25, t);
+                gain.gain.setValueAtTime(0.3, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
                 osc.connect(gain);
@@ -501,9 +501,36 @@
         }
 
         window.soundEngine = new SoundEngine();
+
+        // Meta Quest Controller Haptic Pulse Generator
+        function triggerHaptic(intensity = 0.6, duration = 120) {
+            if (navigator.getGamepads) {
+                const gamepads = navigator.getGamepads();
+                for (let i = 0; i < gamepads.length; i++) {
+                    const gp = gamepads[i];
+                    if (gp && gp.hapticActuators && gp.hapticActuators.length > 0) {
+                        gp.hapticActuators[0].pulse(intensity, duration);
+                    } else if (gp && gp.vibrationActuator) {
+                        gp.vibrationActuator.playEffect('dual-rumble', {
+                            startDelay: 0,
+                            duration: duration,
+                            weakMagnitude: intensity,
+                            strongMagnitude: intensity
+                        }).catch(() => {});
+                    }
+                }
+            }
+        }
+
+        // Global gesture listener to unlock AudioContext in VR & Mobile
+        ['click', 'pointerdown', 'touchstart', 'keydown'].forEach(evtType => {
+            window.addEventListener(evtType, () => {
+                if (window.soundEngine) window.soundEngine.init();
+            }, { once: false, passive: true });
+        });
     </script>
 
-    <!-- A-Frame Custom Game Logic Components -->
+    <!-- Game Logic & A-Frame WebXR Interactive Components -->
     <script>
         // Waste Database Definition
         const WASTE_DATABASE = [
@@ -512,7 +539,7 @@
                 name: 'Apple Core',
                 category: 'green',
                 categoryName: 'Green Bin (Organic)',
-                tip: 'Organic food waste produces methane in landfills if not composted properly!',
+                tip: 'Organic food waste decomposes into rich compost, but creates methane in landfills!',
                 color: '#e11d48',
                 shape: 'apple'
             },
@@ -521,7 +548,7 @@
                 name: 'Banana Peel',
                 category: 'green',
                 categoryName: 'Green Bin (Organic)',
-                tip: 'Fruit peels decompose into nutrient-rich compost in 2-4 weeks!',
+                tip: 'Fruit peels enrich soil with potassium and nitrogen. Always sort into green!',
                 color: '#facc15',
                 shape: 'banana'
             },
@@ -539,7 +566,7 @@
                 name: 'Delivery Box',
                 category: 'blue',
                 categoryName: 'Blue Bin (Paper & Cardboard)',
-                tip: 'Flatten clean cardboard boxes to save 80% bin space and make recycling easier!',
+                tip: 'Flatten cardboard boxes to save 80% bin space and make transport eco-friendly!',
                 color: '#b45309',
                 shape: 'box'
             },
@@ -548,7 +575,7 @@
                 name: 'Plastic Soda Bottle',
                 category: 'yellow',
                 categoryName: 'Yellow Bin (Plastics)',
-                tip: 'Single-use plastic bottles take 450+ years to decompose. Empty and crush before binning!',
+                tip: 'Plastic bottles take 450+ years to decompose. Empty, crush, and bin in yellow!',
                 color: '#06b6d4',
                 shape: 'plastic_bottle'
             },
@@ -557,7 +584,7 @@
                 name: 'Plastic Bag',
                 category: 'yellow',
                 categoryName: 'Yellow Bin (Plastics)',
-                tip: 'Thin film plastics can choke marine animals. Segregate yellow plastic strictly!',
+                tip: 'Thin film plastics can harm wildlife and block drains. Segregate yellow plastic strictly!',
                 color: '#fbbf24',
                 shape: 'plastic_bag'
             },
@@ -575,7 +602,7 @@
                 name: 'AA Battery',
                 category: 'red',
                 categoryName: 'Red Bin (Hazardous / Glass & Metal)',
-                tip: 'Batteries contain toxic heavy metals that leach into groundwater. Always put in Red/Hazardous!',
+                tip: 'Batteries contain toxic heavy metals that leach into groundwater. Keep in Red/Hazardous!',
                 color: '#ea580c',
                 shape: 'battery'
             },
@@ -584,7 +611,7 @@
                 name: 'Aluminum Soda Can',
                 category: 'red',
                 categoryName: 'Red Bin (Hazardous / Glass & Metal)',
-                tip: 'Recycling aluminum uses 95% less energy than producing new metal from bauxite ore!',
+                tip: 'Recycling aluminum cans saves 95% of the energy needed to make brand new cans!',
                 color: '#ef4444',
                 shape: 'can'
             }
@@ -597,11 +624,58 @@
             level: 1,
             heldItem: null,
             isPunished: false,
-            itemsSpawned: 0,
             rankNames: ['Eco Rookie', 'Waste Sorter', 'Civic Defender', 'Earth Guardian', 'Master of Segregation']
         };
 
-        // Component to make items Grabbable (works with Desktop Mouse, Mobile Touch & VR Raycaster)
+        // VR Controller Interactor Component (Meta Quest / Laser & Touch)
+        AFRAME.registerComponent('vr-controller-interactor', {
+            schema: {
+                hand: { type: 'string', default: 'right' }
+            },
+            init: function () {
+                const el = this.el;
+
+                // Sound engine unlock on controller connect
+                el.addEventListener('controllerconnected', () => {
+                    if (window.soundEngine) window.soundEngine.init();
+                });
+
+                // Laser Raycaster Hover visual feedback
+                el.addEventListener('raycaster-intersection', (evt) => {
+                    const intersected = evt.detail.els[0];
+                    if (intersected && intersected.classList.contains('clickable')) {
+                        el.setAttribute('raycaster', 'lineColor', '#34d399');
+                        triggerHaptic(0.2, 40);
+                    }
+                });
+
+                el.addEventListener('raycaster-intersection-cleared', () => {
+                    el.setAttribute('raycaster', 'lineColor', '#38bdf8');
+                });
+
+                // Controller Button Event Listeners for Quest Controllers
+                const triggerAction = (evt) => {
+                    if (window.soundEngine) window.soundEngine.init();
+
+                    const raycaster = el.components.raycaster;
+                    if (raycaster && raycaster.intersectedEls && raycaster.intersectedEls.length > 0) {
+                        const target = raycaster.intersectedEls[0];
+                        if (target && target.classList.contains('clickable')) {
+                            // Forward click to target
+                            target.emit('click', { cursorEl: el }, true);
+                            triggerHaptic(0.4, 80);
+                        }
+                    }
+                };
+
+                el.addEventListener('triggerdown', triggerAction);
+                el.addEventListener('gripdown', triggerAction);
+                el.addEventListener('select', triggerAction);
+                el.addEventListener('selectstart', triggerAction);
+            }
+        });
+
+        // Component to make items Grabbable (works with Desktop Mouse & Meta Quest Controllers)
         AFRAME.registerComponent('grabbable-waste', {
             schema: {
                 wasteId: { type: 'string' }
@@ -609,21 +683,22 @@
             init: function () {
                 const el = this.el;
                 this.wasteData = WASTE_DATABASE.find(w => w.id === this.data.wasteId) || WASTE_DATABASE[0];
+                this.isHeld = false;
 
                 // Hover Effects
                 el.addEventListener('mouseenter', () => {
-                    if (!window.gameState.heldItem && !window.gameState.isPunished) {
-                        el.setAttribute('scale', '1.15 1.15 1.15');
+                    if (!window.gameState.heldItem && !window.gameState.isPunished && !this.isHeld) {
+                        el.setAttribute('scale', '1.18 1.18 1.18');
                     }
                 });
 
                 el.addEventListener('mouseleave', () => {
-                    if (window.gameState.heldItem !== el) {
+                    if (window.gameState.heldItem !== el && !this.isHeld) {
                         el.setAttribute('scale', '1 1 1');
                     }
                 });
 
-                // Click / Trigger to Grab or Drop
+                // Click / Trigger / Select to Grab or Release
                 el.addEventListener('click', (evt) => {
                     this.toggleGrab();
                 });
@@ -642,35 +717,45 @@
             },
 
             grabItem: function () {
+                this.isHeld = true;
                 window.soundEngine.playPop();
+                triggerHaptic(0.5, 90);
                 window.gameState.heldItem = this.el;
 
+                // Update 2D Grab Banner
                 const banner = document.getElementById('grab-banner');
                 const bannerText = document.getElementById('grab-banner-text');
                 if (banner && bannerText) {
-                    bannerText.innerHTML = `Holding: <strong>${this.wasteData.name}</strong> (Click a bin to drop)`;
+                    bannerText.innerHTML = `Holding: <strong>${this.wasteData.name}</strong> ➔ Aim at correct bin & click!`;
                     banner.style.display = 'flex';
                 }
 
-                // In VR/Desktop, attach item to camera or hand holder
+                // Remove .clickable while held so laser passes through cleanly to dustbins!
+                this.el.classList.remove('clickable');
+
+                // Attach to player view anchor
                 const holder = document.getElementById('player-held-anchor');
                 if (holder) {
                     this.originalParent = this.el.parentNode;
                     this.originalPosition = this.el.getAttribute('position');
                     
-                    // Attach to player view
                     holder.appendChild(this.el);
                     this.el.setAttribute('position', '0 0 0');
-                    this.el.setAttribute('scale', '1.2 1.2 1.2');
+                    this.el.setAttribute('scale', '1.15 1.15 1.15');
                 }
             },
 
             releaseItem: function () {
+                this.isHeld = false;
                 if (this.originalParent) {
                     this.originalParent.appendChild(this.el);
-                    this.el.setAttribute('position', this.originalPosition || '0 1 -2');
+                    this.el.setAttribute('position', this.originalPosition || '0 0.95 -2.3');
                     this.el.setAttribute('scale', '1 1 1');
                 }
+                
+                // Re-enable clickability
+                this.el.classList.add('clickable');
+
                 window.gameState.heldItem = null;
                 const banner = document.getElementById('grab-banner');
                 if (banner) banner.style.display = 'none';
@@ -690,19 +775,19 @@
                 // Hover lid open animation
                 el.addEventListener('mouseenter', () => {
                     if (lid) {
-                        lid.setAttribute('animation', 'property: rotation; to: -45 0 0; dur: 200; easing: easeOutQuad');
+                        lid.setAttribute('animation', 'property: rotation; to: -45 0 0; dur: 180; easing: easeOutQuad');
                     }
-                    el.setAttribute('scale', '1.05 1.05 1.05');
+                    el.setAttribute('scale', '1.06 1.06 1.06');
                 });
 
                 el.addEventListener('mouseleave', () => {
                     if (lid) {
-                        lid.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 200; easing: easeInQuad');
+                        lid.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 180; easing: easeInQuad');
                     }
                     el.setAttribute('scale', '1 1 1');
                 });
 
-                // Click on bin when holding an item -> Deposit!
+                // Click / Trigger on bin
                 el.addEventListener('click', (evt) => {
                     if (window.gameState.heldItem && !window.gameState.isPunished) {
                         const heldEl = window.gameState.heldItem;
@@ -710,12 +795,19 @@
                         if (wasteComp && wasteComp.wasteData) {
                             this.evaluateDeposit(heldEl, wasteComp.wasteData);
                         }
+                    } else if (!window.gameState.heldItem && !window.gameState.isPunished) {
+                        // Tactile lid bounce when tapping without item
+                        if (lid) {
+                            lid.setAttribute('animation', 'property: rotation; to: -30 0 0; dur: 120; dir: alternate; loop: 2; easing: easeInOutQuad');
+                        }
+                        window.soundEngine.playPop();
+                        triggerHaptic(0.3, 60);
                     }
                 });
             },
 
             evaluateDeposit: function (heldEl, wasteData) {
-                // Remove item from hold
+                // Clear hold state
                 window.gameState.heldItem = null;
                 const banner = document.getElementById('grab-banner');
                 if (banner) banner.style.display = 'none';
@@ -735,6 +827,8 @@
 
             handleSuccess: function (wasteData) {
                 window.soundEngine.playSuccess();
+                triggerHaptic(0.7, 200);
+
                 window.gameState.score += 100;
                 window.gameState.streak += 1;
                 
@@ -774,7 +868,7 @@
                     if (spawner && spawner.components['waste-spawner']) {
                         spawner.components['waste-spawner'].spawnNewItem();
                     }
-                }, 800);
+                }, 700);
             },
 
             handleFailure: function (wasteData) {
@@ -784,6 +878,7 @@
 
                 // Play comedic fail audio
                 window.soundEngine.playFail();
+                triggerHaptic(0.9, 400);
 
                 // Trigger Dramatic Cinematic (NPC Rushes, Punches to Space)
                 const enforcerNpc = document.getElementById('civic-enforcer-npc');
@@ -803,6 +898,8 @@
                 // Step 2: NPC Wind-up & Punch after 450ms
                 setTimeout(() => {
                     window.soundEngine.playPunch();
+                    triggerHaptic(1.0, 500);
+
                     document.body.classList.add('shake-screen');
                     setTimeout(() => document.body.classList.remove('shake-screen'), 600);
 
@@ -828,6 +925,23 @@
                     }, 1200);
 
                 }, 500);
+            }
+        });
+
+        // Interactive VR Retry Button Component
+        AFRAME.registerComponent('vr-retry-button', {
+            init: function () {
+                const el = this.el;
+                el.addEventListener('mouseenter', () => {
+                    el.setAttribute('scale', '1.1 1.1 1.1');
+                    triggerHaptic(0.2, 30);
+                });
+                el.addEventListener('mouseleave', () => {
+                    el.setAttribute('scale', '1 1 1');
+                });
+                el.addEventListener('click', () => {
+                    resetToEarth();
+                });
             }
         });
 
@@ -860,6 +974,7 @@
         function resetToEarth() {
             window.gameState.isPunished = false;
             window.soundEngine.playPop();
+            triggerHaptic(0.5, 100);
 
             // Hide Failure Modal & Blood
             const modal2D = document.getElementById('punishment-modal');
@@ -905,12 +1020,10 @@
                     { x: 0.35, y: 0.95, z: -2.3 },
                     { x: 1.0, y: 0.95, z: -2.3 }
                 ];
-                this.activeItems = [];
                 this.respawnAll();
             },
 
             respawnAll: function () {
-                // Clear existing items
                 const container = document.getElementById('waste-items-container');
                 if (container) {
                     while (container.firstChild) {
@@ -918,7 +1031,6 @@
                     }
                 }
 
-                // Pick 4 unique random items
                 const shuffled = [...WASTE_DATABASE].sort(() => 0.5 - Math.random());
                 for (let i = 0; i < 4; i++) {
                     this.create3DWasteItem(shuffled[i], this.itemSlots[i]);
@@ -945,6 +1057,10 @@
                 itemEntity.setAttribute('position', `${slotPos.x} ${slotPos.y} ${slotPos.z}`);
                 itemEntity.setAttribute('class', 'clickable grabbable');
                 itemEntity.setAttribute('grabbable-waste', `wasteId: ${wasteData.id}`);
+
+                // Generous invisible raycast collider box for effortless Quest laser targeting
+                itemEntity.setAttribute('geometry', 'primitive: box; width: 0.45; height: 0.45; depth: 0.45');
+                itemEntity.setAttribute('material', 'opacity: 0; transparent: true; depthWrite: false');
 
                 // Procedural 3D Geometry based on waste shape
                 let visualMarkup = '';
@@ -1013,7 +1129,7 @@
                 visualMarkup += `
                     <a-text value="${wasteData.name}" position="0 0.28 0" align="center" width="1.8" color="#ffffff" 
                             font="mozillavr" background-color="#0f172a" background-padding="0.05" background-opacity="0.85"></a-text>
-                    <a-ring position="0 -0.01 0" rotation="-90 0 0" radius-inner="0.12" radius-outer="0.15" color="#38bdf8" opacity="0.6"></a-ring>
+                    <a-ring position="0 -0.01 0" rotation="-90 0 0" radius-inner="0.12" radius-outer="0.16" color="#38bdf8" opacity="0.7"></a-ring>
                 `;
 
                 itemEntity.innerHTML = visualMarkup;
@@ -1068,7 +1184,7 @@
                     <div class="legend-item bg-red">🔴 Glass & Metal</div>
                 </div>
                 <div class="control-tip">
-                    🎮 <strong>Controls:</strong> Click/Aim with controller laser to grab waste, then click the correct bin. Don't make mistakes or the Civic Enforcer will launch you into space!
+                    🎮 <strong>Controls:</strong> Click / Laser Trigger to pick up waste, then click the correct bin. Don't make mistakes or the Civic Enforcer will punch you into space!
                 </div>
             </div>
 
@@ -1083,7 +1199,7 @@
     <!-- Blood / Punished Vignette Screen Overlay -->
     <div id="blood-overlay"></div>
 
-    <!-- 2D Punishment & Educational Modal (Overlayed in space if on 2D screen) -->
+    <!-- 2D Punishment & Educational Modal (Overlayed in space on 2D screens) -->
     <div id="punishment-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.95); border: 2px solid #ef4444; border-radius: 20px; padding: 28px; width: 90%; max-width: 520px; z-index: 2500; text-align: center; box-shadow: 0 0 50px rgba(239, 68, 68, 0.8); backdrop-filter: blur(16px);">
         <div style="font-size: 2.5rem; margin-bottom: 8px;">🚀💥🪐</div>
         <h2 style="margin: 0 0 8px 0; color: #ef4444; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.5px;">CRITICAL CIVIC SENSE FAILURE!</h2>
@@ -1103,42 +1219,40 @@
     </div>
 
     <!-- WebXR A-FRAME 3D SCENE -->
-    <a-scene background="color: #030712" cursor="rayOrigin: mouse" raycaster="objects: .clickable">
-
-        <!-- ASSET MANAGEMENT -->
-        <a-assets>
-            <!-- Preload fonts / procedural gradients -->
-        </a-assets>
+    <a-scene background="color: #030712"
+             cursor="rayOrigin: mouse"
+             raycaster="objects: .clickable; interval: 40"
+             vr-mode-ui="enabled: true">
 
         <!-- CAMERA RIG (Supports Desktop WASD/Mouse & Meta Quest Controllers) -->
         <a-entity id="camera-rig" position="0 1.6 0">
-            <!-- Head Camera & Cursor -->
-            <a-camera id="head-camera" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 15">
-                <!-- Center crosshair raycaster for desktop / gaze -->
-                <a-entity cursor="fuse: false" position="0 0 -1"
-                    geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.018"
-                    material="color: #38bdf8; shader: flat; opacity: 0.75"
-                    raycaster="objects: .clickable">
-                </a-entity>
-
+            <!-- Head Camera -->
+            <a-camera id="head-camera" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 18">
                 <!-- Anchor for holding items attached to player view -->
-                <a-entity id="player-held-anchor" position="0 -0.35 -1.1"></a-entity>
+                <a-entity id="player-held-anchor" position="0.3 -0.28 -0.85"></a-entity>
             </a-camera>
 
             <!-- Meta Quest VR Controllers (Laser Pointers & Grasping) -->
             <!-- Right Controller -->
-            <a-entity id="right-hand" oculus-touch-controls="hand: right"
-                laser-controls="hand: right" raycaster="objects: .clickable; lineColor: #38bdf8; lineOpacity: 0.8">
+            <a-entity id="right-hand"
+                      laser-controls="hand: right"
+                      raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.85"
+                      cursor="fuse: false; rayOrigin: entity"
+                      vr-controller-interactor="hand: right">
             </a-entity>
+
             <!-- Left Controller -->
-            <a-entity id="left-hand" oculus-touch-controls="hand: left"
-                laser-controls="hand: left" raycaster="objects: .clickable; lineColor: #38bdf8; lineOpacity: 0.8">
+            <a-entity id="left-hand"
+                      laser-controls="hand: left"
+                      raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.85"
+                      cursor="fuse: false; rayOrigin: entity"
+                      vr-controller-interactor="hand: left">
             </a-entity>
         </a-entity>
 
         <!-- LIGHTING -->
-        <a-entity light="type: ambient; color: #ffffff; intensity: 0.7"></a-entity>
-        <a-entity light="type: directional; color: #bae6fd; intensity: 0.9; position: 3 6 4" cast-shadow="true"></a-entity>
+        <a-entity light="type: ambient; color: #ffffff; intensity: 0.75"></a-entity>
+        <a-entity light="type: directional; color: #bae6fd; intensity: 0.95; position: 3 7 4"></a-entity>
         <a-entity light="type: point; color: #38ef7d; intensity: 0.6; distance: 10; position: -2 3 -2"></a-entity>
         <a-entity light="type: point; color: #06b6d4; intensity: 0.6; distance: 10; position: 2 3 -2"></a-entity>
 
@@ -1153,14 +1267,12 @@
             <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="6" radius-outer="6.15" color="#06b6d4"></a-ring>
             <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="9" radius-outer="9.2" color="#3b82f6"></a-ring>
 
-            <!-- Decorative Stylized Eco Trees & Pillars -->
-            <!-- Tree 1 -->
+            <!-- Decorative Stylized Eco Trees -->
             <a-entity position="-6 0 -7">
                 <a-cylinder radius="0.25" height="2" color="#78350f" position="0 1 0"></a-cylinder>
                 <a-sphere radius="1.3" color="#10b981" position="0 2.6 0" roughness="0.9"></a-sphere>
                 <a-sphere radius="0.9" color="#34d399" position="0.5 3.3 0" roughness="0.9"></a-sphere>
             </a-entity>
-            <!-- Tree 2 -->
             <a-entity position="6 0 -7">
                 <a-cylinder radius="0.25" height="2" color="#78350f" position="0 1 0"></a-cylinder>
                 <a-sphere radius="1.4" color="#059669" position="0 2.6 0" roughness="0.9"></a-sphere>
@@ -1187,76 +1299,88 @@
                 <a-cylinder position="1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 
                 <!-- Table Instruction Text -->
-                <a-text value="PICK UP WASTE ITEMS & DROP INTO MATCHING BIN" position="0 0.92 0.4" rotation="-60 0 0" align="center" width="2.5" color="#94a3b8" font="mozillavr"></a-text>
+                <a-text value="AIM & CLICK ITEMS TO PICK UP ➔ CLICK BIN TO SORT" position="0 0.92 0.4" rotation="-60 0 0" align="center" width="2.6" color="#94a3b8" font="mozillavr"></a-text>
             </a-entity>
 
-            <!-- 4 COLOR-CODED DUSTBINS STATION -->
+            <!-- 4 COLOR-CODED DUSTBINS STATION WITH COLLIDERS -->
             <!-- 1. GREEN BIN (ORGANIC / WET) -->
-            <a-entity id="bin-green" class="clickable" position="-2.1 0 -3.6" dustbin-target="category: green; binName: Green Bin (Organic)">
+            <a-entity id="bin-green" class="clickable" position="-2.1 0 -3.6"
+                      geometry="primitive: cylinder; radius: 0.52; height: 1.4"
+                      material="opacity: 0; transparent: true; depthWrite: false"
+                      dustbin-target="category: green; binName: Green Bin (Organic)">
                 <!-- Bin Body -->
-                <a-cylinder radius="0.38" height="1.1" color="#10b981" metalness="0.2" roughness="0.5" position="0 0.55 0"></a-cylinder>
-                <a-cylinder radius="0.4" height="0.08" color="#059669" position="0 1.1 0"></a-cylinder>
+                <a-cylinder radius="0.38" height="1.1" color="#10b981" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
+                <a-cylinder radius="0.4" height="0.08" color="#059669" position="0 0.55 0"></a-cylinder>
                 <!-- Interactive Lid -->
-                <a-entity class="bin-lid" position="0 1.14 -0.38">
+                <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#047857" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#34d399" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
                 <!-- Neon Ring -->
-                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0.55 0" color="#34d399" material="shader: flat"></a-torus>
+                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#34d399" material="shader: flat"></a-torus>
                 <!-- 3D Label & Icon -->
-                <a-text value="ORGANIC" position="0 0.7 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
-                <a-text value="GREEN: WET / FOOD" position="0 0.45 0.4" align="center" width="1.8" color="#a7f3d0" font="mozillavr"></a-text>
+                <a-text value="ORGANIC" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
+                <a-text value="GREEN: WET / FOOD" position="0 -0.1 0.4" align="center" width="1.8" color="#a7f3d0" font="mozillavr"></a-text>
             </a-entity>
 
             <!-- 2. BLUE BIN (PAPER & CARDBOARD) -->
-            <a-entity id="bin-blue" class="clickable" position="-0.7 0 -3.6" dustbin-target="category: blue; binName: Blue Bin (Paper)">
+            <a-entity id="bin-blue" class="clickable" position="-0.7 0 -3.6"
+                      geometry="primitive: cylinder; radius: 0.52; height: 1.4"
+                      material="opacity: 0; transparent: true; depthWrite: false"
+                      dustbin-target="category: blue; binName: Blue Bin (Paper)">
                 <!-- Bin Body -->
-                <a-cylinder radius="0.38" height="1.1" color="#3b82f6" metalness="0.2" roughness="0.5" position="0 0.55 0"></a-cylinder>
-                <a-cylinder radius="0.4" height="0.08" color="#2563eb" position="0 1.1 0"></a-cylinder>
+                <a-cylinder radius="0.38" height="1.1" color="#3b82f6" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
+                <a-cylinder radius="0.4" height="0.08" color="#2563eb" position="0 0.55 0"></a-cylinder>
                 <!-- Interactive Lid -->
-                <a-entity class="bin-lid" position="0 1.14 -0.38">
+                <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#1d4ed8" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#60a5fa" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
                 <!-- Neon Ring -->
-                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0.55 0" color="#60a5fa" material="shader: flat"></a-torus>
+                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#60a5fa" material="shader: flat"></a-torus>
                 <!-- 3D Label & Icon -->
-                <a-text value="PAPER" position="0 0.7 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
-                <a-text value="BLUE: DRY / BOX" position="0 0.45 0.4" align="center" width="1.8" color="#bfdbfe" font="mozillavr"></a-text>
+                <a-text value="PAPER" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
+                <a-text value="BLUE: DRY / BOX" position="0 -0.1 0.4" align="center" width="1.8" color="#bfdbfe" font="mozillavr"></a-text>
             </a-entity>
 
             <!-- 3. YELLOW BIN (PLASTICS) -->
-            <a-entity id="bin-yellow" class="clickable" position="0.7 0 -3.6" dustbin-target="category: yellow; binName: Yellow Bin (Plastic)">
+            <a-entity id="bin-yellow" class="clickable" position="0.7 0 -3.6"
+                      geometry="primitive: cylinder; radius: 0.52; height: 1.4"
+                      material="opacity: 0; transparent: true; depthWrite: false"
+                      dustbin-target="category: yellow; binName: Yellow Bin (Plastic)">
                 <!-- Bin Body -->
-                <a-cylinder radius="0.38" height="1.1" color="#f59e0b" metalness="0.2" roughness="0.5" position="0 0.55 0"></a-cylinder>
-                <a-cylinder radius="0.4" height="0.08" color="#d97706" position="0 1.1 0"></a-cylinder>
+                <a-cylinder radius="0.38" height="1.1" color="#f59e0b" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
+                <a-cylinder radius="0.4" height="0.08" color="#d97706" position="0 0.55 0"></a-cylinder>
                 <!-- Interactive Lid -->
-                <a-entity class="bin-lid" position="0 1.14 -0.38">
+                <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#b45309" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#fcd34d" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
                 <!-- Neon Ring -->
-                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0.55 0" color="#fbbf24" material="shader: flat"></a-torus>
+                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#fbbf24" material="shader: flat"></a-torus>
                 <!-- 3D Label & Icon -->
-                <a-text value="PLASTIC" position="0 0.7 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
-                <a-text value="YELLOW: BOTTLE / BAG" position="0 0.45 0.4" align="center" width="1.8" color="#fde68a" font="mozillavr"></a-text>
+                <a-text value="PLASTIC" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
+                <a-text value="YELLOW: BOTTLE / BAG" position="0 -0.1 0.4" align="center" width="1.8" color="#fde68a" font="mozillavr"></a-text>
             </a-entity>
 
             <!-- 4. RED BIN (HAZARDOUS / GLASS & METAL) -->
-            <a-entity id="bin-red" class="clickable" position="2.1 0 -3.6" dustbin-target="category: red; binName: Red Bin (Hazardous/Glass/Metal)">
+            <a-entity id="bin-red" class="clickable" position="2.1 0 -3.6"
+                      geometry="primitive: cylinder; radius: 0.52; height: 1.4"
+                      material="opacity: 0; transparent: true; depthWrite: false"
+                      dustbin-target="category: red; binName: Red Bin (Hazardous/Glass/Metal)">
                 <!-- Bin Body -->
-                <a-cylinder radius="0.38" height="1.1" color="#ef4444" metalness="0.2" roughness="0.5" position="0 0.55 0"></a-cylinder>
-                <a-cylinder radius="0.4" height="0.08" color="#dc2626" position="0 1.1 0"></a-cylinder>
+                <a-cylinder radius="0.38" height="1.1" color="#ef4444" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
+                <a-cylinder radius="0.4" height="0.08" color="#dc2626" position="0 0.55 0"></a-cylinder>
                 <!-- Interactive Lid -->
-                <a-entity class="bin-lid" position="0 1.14 -0.38">
+                <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#b91c1c" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#f87171" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
                 <!-- Neon Ring -->
-                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0.55 0" color="#f87171" material="shader: flat"></a-torus>
+                <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#f87171" material="shader: flat"></a-torus>
                 <!-- 3D Label & Icon -->
-                <a-text value="HAZARDOUS" position="0 0.7 0.4" align="center" width="2.3" color="#ffffff" font="mozillavr"></a-text>
-                <a-text value="RED: GLASS / E-WASTE" position="0 0.45 0.4" align="center" width="1.7" color="#fecaca" font="mozillavr"></a-text>
+                <a-text value="HAZARDOUS" position="0 0.15 0.4" align="center" width="2.3" color="#ffffff" font="mozillavr"></a-text>
+                <a-text value="RED: GLASS / E-WASTE" position="0 -0.1 0.4" align="center" width="1.7" color="#fecaca" font="mozillavr"></a-text>
             </a-entity>
 
             <!-- SPAWNED 3D WASTE ITEMS CONTAINER -->
@@ -1272,7 +1396,7 @@
             </a-entity>
         </a-entity>
 
-        <!-- ANGRY CIVIC SENSE ENFORCER NPC (Charges in on failure) -->
+        <!-- ANGRY CIVIC SENSE ENFORCER NPC -->
         <a-entity id="civic-enforcer-npc" visible="false" position="0 0.2 -2.5">
             <!-- Cybernetic Body -->
             <a-cylinder position="0 1.2 0" radius="0.35" height="0.9" color="#1e293b" metalness="0.8" roughness="0.2"></a-cylinder>
@@ -1291,7 +1415,7 @@
             <a-sphere position="-0.45 1.5 0" radius="0.16" color="#334155"></a-sphere>
             <a-sphere position="0.45 1.5 0" radius="0.16" color="#334155"></a-sphere>
 
-            <!-- Giant Red Boxing Glove (Right Arm Cocked Forward) -->
+            <!-- Giant Red Boxing Glove -->
             <a-entity position="0.45 1.35 0.4" rotation="20 0 0">
                 <a-cylinder radius="0.08" height="0.35" rotation="90 0 0" color="#334155"></a-cylinder>
                 <a-sphere position="0 0 0.3" radius="0.24" color="#dc2626" roughness="0.3"></a-sphere>
@@ -1325,9 +1449,8 @@
             </a-entity>
         </a-entity>
 
-        <!-- PLANET EARTH SPHERE (Viewed from Space Far Below) -->
+        <!-- PLANET EARTH SPHERE -->
         <a-entity id="earth-planet" visible="false" position="0 100 -30" animation="property: rotation; to: 0 360 0; dur: 60000; loop: true; easing: linear">
-            <!-- Earth Globe -->
             <a-sphere radius="14" color="#1d4ed8" roughness="0.6">
                 <!-- Continents / Landmass Shapes -->
                 <a-sphere position="4 4 10" radius="4.5" color="#15803d" roughness="0.9"></a-sphere>
@@ -1339,7 +1462,7 @@
             </a-sphere>
         </a-entity>
 
-        <!-- IN-WORLD 3D VR FAILURE BOARD (Visible in Space for VR Headset Users) -->
+        <!-- IN-WORLD 3D VR FAILURE BOARD (Visible in Space for Quest VR & Desktop) -->
         <a-entity id="vr-failure-board" visible="false" position="0 160 -9">
             <a-box width="7.5" height="4.5" depth="0.1" color="#0f172a" material="opacity: 0.95" position="0 0 0"></a-box>
             <a-box width="7.7" height="4.7" depth="0.05" color="#ef4444" position="0 0 -0.05"></a-box>
@@ -1348,10 +1471,12 @@
             <a-text id="vr-fail-desc" value="CRITICAL CIVIC FAILURE:\nYou put item into the wrong bin!" position="0 0.6 0.1" align="center" width="5.5" color="#f8fafc" font="mozillavr"></a-text>
             <a-text id="vr-fail-tip" value="CIVIC SENSE LESSON:\nSegregate properly to protect the environment." position="0 -0.4 0.1" align="center" width="4.8" color="#38bdf8" font="mozillavr"></a-text>
 
-            <!-- 3D Interactive Return Button for Quest Controller Raycaster -->
-            <a-entity id="vr-try-again-btn" class="clickable" position="0 -1.4 0.15" onclick="resetToEarth()">
-                <a-box width="3.2" height="0.6" depth="0.1" color="#10b981"></a-box>
-                <a-text value="RETURN TO EARTH & RETRY" position="0 0 0.08" align="center" width="4.2" color="#ffffff" font="mozillavr"></a-text>
+            <!-- 3D Interactive Return Button for Quest Controller Raycaster & Mouse -->
+            <a-entity id="vr-try-again-btn" class="clickable" position="0 -1.4 0.15"
+                      geometry="primitive: box; width: 3.4; height: 0.65; depth: 0.15"
+                      material="color: #10b981; metalness: 0.3; roughness: 0.4"
+                      vr-retry-button>
+                <a-text value="RETURN TO EARTH & RETRY" position="0 0 0.09" align="center" width="4.2" color="#ffffff" font="mozillavr"></a-text>
             </a-entity>
         </a-entity>
 
