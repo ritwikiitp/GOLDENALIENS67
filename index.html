@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Civic Sense VR - Waste Segregation Challenge</title>
     <meta name="description"
-        content="Learn civic waste segregation in WebXR. Put waste in the right bin to gain eco score, or get punched into outer space by the Civic Sense Enforcer!" />
+        content="Learn civic waste segregation in WebXR. Sort waste properly or face the Civic Sense Officer in dramatic slow-motion!" />
 
     <!-- A-Frame WebXR Framework 1.6.0 -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
@@ -22,7 +22,7 @@
             --primary-blue: #3b82f6;
             --primary-yellow: #f59e0b;
             --primary-red: #ef4444;
-            --dark-bg: rgba(15, 23, 42, 0.85);
+            --dark-bg: rgba(15, 23, 42, 0.88);
             --accent-cyan: #06b6d4;
         }
 
@@ -252,6 +252,57 @@
             100% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.8); }
         }
 
+        /* Cinematic Slow-Motion Letterbox Bars */
+        #cinematic-bars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1400;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #cinematic-bars.active {
+            opacity: 1;
+        }
+
+        .cinematic-bar {
+            width: 100%;
+            height: 70px;
+            background: #000;
+        }
+
+        /* Cinematic Slow-Mo Banner */
+        #slowmo-tag {
+            position: absolute;
+            top: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239, 68, 68, 0.9);
+            color: #fff;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+            display: none;
+            z-index: 1450;
+            animation: slowMoPulse 0.8s infinite alternate;
+        }
+
+        @keyframes slowMoPulse {
+            0% { transform: translateX(-50%) scale(0.95); opacity: 0.85; }
+            100% { transform: translateX(-50%) scale(1.05); opacity: 1; }
+        }
+
         /* Red Blood Screen Overlay on Punished State */
         #blood-overlay {
             position: absolute;
@@ -263,7 +314,7 @@
             z-index: 1500;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
-            background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 20%, rgba(185, 28, 28, 0.6) 70%, rgba(127, 29, 29, 0.95) 100%);
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 20%, rgba(185, 28, 28, 0.65) 70%, rgba(127, 29, 29, 0.95) 100%);
             mix-blend-mode: multiply;
         }
 
@@ -273,14 +324,14 @@
 
         /* Screen Shake Animation */
         .shake-screen {
-            animation: screenShake 0.6s cubic-bezier(.36, .07, .19, .97) both;
+            animation: screenShake 0.7s cubic-bezier(.36, .07, .19, .97) both;
         }
 
         @keyframes screenShake {
-            10%, 90% { transform: translate3d(-3px, -2px, 0) rotate(-0.5deg); }
-            20%, 80% { transform: translate3d(4px, 3px, 0) rotate(1deg); }
-            30%, 50%, 70% { transform: translate3d(-6px, -4px, 0) rotate(-1.5deg); }
-            40%, 60% { transform: translate3d(6px, 5px, 0) rotate(1deg); }
+            10%, 90% { transform: translate3d(-4px, -3px, 0) rotate(-0.8deg); }
+            20%, 80% { transform: translate3d(5px, 4px, 0) rotate(1.2deg); }
+            30%, 50%, 70% { transform: translate3d(-7px, -5px, 0) rotate(-1.8deg); }
+            40%, 60% { transform: translate3d(7px, 6px, 0) rotate(1.4deg); }
         }
 
         /* Success Confetti Animation Class */
@@ -314,6 +365,7 @@
             .guide-bins-legend { grid-template-columns: repeat(2, 1fr); font-size: 0.65rem; }
             .stats-bar { gap: 10px; }
             .stat-value { font-size: 1.1rem; }
+            .cinematic-bar { height: 40px; }
         }
     </style>
 
@@ -343,7 +395,7 @@
                 this.init();
                 if (!this.ctx) return;
 
-                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                const notes = [523.25, 659.25, 783.99, 1046.50];
                 notes.forEach((freq, i) => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -363,8 +415,54 @@
                 });
             }
 
-            // Comedic "FAAAA..." Fail Buzzer
-            playFail() {
+            // Item drop thud into bin
+            playItemDrop() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, t);
+                osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+
+                gain.gain.setValueAtTime(0.4, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            }
+
+            // Heavy Footstep thud for NPC approach
+            playFootstep() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(90, t);
+                osc.frequency.exponentialRampToValueAtTime(35, t + 0.12);
+
+                gain.gain.setValueAtTime(0.35, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.16);
+            }
+
+            // Dramatic Slow-Mo Whoosh
+            playSlowMoWindup() {
                 if (!this.enabled) return;
                 this.init();
                 if (!this.ctx) return;
@@ -375,25 +473,23 @@
                 const gain = this.ctx.createGain();
 
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(320, t);
-                osc.frequency.exponentialRampToValueAtTime(80, t + 1.2);
+                osc.frequency.setValueAtTime(280, t);
+                osc.frequency.exponentialRampToValueAtTime(70, t + 1.2);
 
                 filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(1200, t);
-                filter.frequency.linearRampToValueAtTime(250, t + 1.2);
+                filter.frequency.setValueAtTime(800, t);
+                filter.frequency.linearRampToValueAtTime(150, t + 1.2);
 
-                gain.gain.setValueAtTime(0, t);
-                gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
+                gain.gain.setValueAtTime(0.01, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.4);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.25);
 
                 osc.connect(filter);
                 filter.connect(gain);
                 gain.connect(this.ctx.destination);
 
                 osc.start(t);
-                osc.stop(t + 1.35);
-
-                this.speakVoice("Civic sense failure! Incorrect bin!");
+                osc.stop(t + 1.3);
             }
 
             // Heavy Punch Impact (Sub-bass thud + punch crack)
@@ -404,42 +500,41 @@
 
                 const t = this.ctx.currentTime;
 
-                // Sub-bass thud
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(190, t);
-                osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
+                osc.frequency.setValueAtTime(220, t);
+                osc.frequency.exponentialRampToValueAtTime(25, t + 0.5);
 
-                gain.gain.setValueAtTime(0.8, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                gain.gain.setValueAtTime(0.9, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
 
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
                 osc.start(t);
-                osc.stop(t + 0.45);
+                osc.stop(t + 0.55);
 
                 // Noise crack for impact
-                const bufferSize = this.ctx.sampleRate * 0.15;
+                const bufferSize = this.ctx.sampleRate * 0.2;
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const data = buffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.03));
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.04));
                 }
 
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = buffer;
                 const noiseGain = this.ctx.createGain();
-                noiseGain.gain.setValueAtTime(0.5, t);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                noiseGain.gain.setValueAtTime(0.6, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
 
                 noise.connect(noiseGain);
                 noiseGain.connect(this.ctx.destination);
                 noise.start(t);
             }
 
-            // Space Launch Whoosh
-            playSpaceWhoosh() {
+            // Multi-Stage Space Launch Whoosh & Atmospheric Sound
+            playAtmosphericLaunch() {
                 if (!this.enabled) return;
                 this.init();
                 if (!this.ctx) return;
@@ -448,19 +543,17 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(80, t);
-                osc.frequency.exponentialRampToValueAtTime(900, t + 2.5);
+                osc.frequency.setValueAtTime(70, t);
+                osc.frequency.exponentialRampToValueAtTime(1100, t + 4.5);
 
                 gain.gain.setValueAtTime(0.01, t);
-                gain.gain.linearRampToValueAtTime(0.25, t + 1.0);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 2.6);
+                gain.gain.linearRampToValueAtTime(0.35, t + 1.5);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 4.8);
 
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
                 osc.start(t);
-                osc.stop(t + 2.7);
-
-                this.speakVoice("You are not worthy to live on this planet!");
+                osc.stop(t + 4.9);
             }
 
             // Grabbing / Item Pickup Pop
@@ -490,8 +583,8 @@
                     try {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(phrase);
-                        utterance.rate = 1.05;
-                        utterance.pitch = 0.9;
+                        utterance.rate = 1.0;
+                        utterance.pitch = 0.85;
                         window.speechSynthesis.speak(utterance);
                     } catch (e) {
                         console.warn("SpeechSynthesis error:", e);
@@ -635,7 +728,6 @@
             init: function () {
                 const el = this.el;
 
-                // Sound engine unlock on controller connect
                 el.addEventListener('controllerconnected', () => {
                     if (window.soundEngine) window.soundEngine.init();
                 });
@@ -653,7 +745,7 @@
                     el.setAttribute('raycaster', 'lineColor', '#38bdf8');
                 });
 
-                // Controller Button Event Listeners for Quest Controllers
+                // Button Handlers
                 const triggerAction = (evt) => {
                     if (window.soundEngine) window.soundEngine.init();
 
@@ -661,7 +753,6 @@
                     if (raycaster && raycaster.intersectedEls && raycaster.intersectedEls.length > 0) {
                         const target = raycaster.intersectedEls[0];
                         if (target && target.classList.contains('clickable')) {
-                            // Forward click to target
                             target.emit('click', { cursorEl: el }, true);
                             triggerHaptic(0.4, 80);
                         }
@@ -675,7 +766,56 @@
             }
         });
 
-        // Component to make items Grabbable (works with Desktop Mouse & Meta Quest Controllers)
+        // Component to animate Human Officer Walk Cycle and approaching motion
+        AFRAME.registerComponent('human-officer-ai', {
+            init: function () {
+                this.isWalking = false;
+                this.leftLeg = this.el.querySelector('.officer-left-leg');
+                this.rightLeg = this.el.querySelector('.officer-right-leg');
+                this.leftArm = this.el.querySelector('.officer-left-arm');
+                this.rightArm = this.el.querySelector('.officer-right-arm');
+                this.officerTorso = this.el.querySelector('.officer-torso');
+                this.walkTime = 0;
+                this.footstepTimer = 0;
+            },
+            tick: function (time, delta) {
+                if (!this.isWalking) return;
+                const dt = delta / 1000;
+                this.walkTime += dt * 5.5;
+
+                // Oscillate legs & arms for realistic walking motion
+                const angle = Math.sin(this.walkTime) * 28;
+                if (this.leftLeg) this.leftLeg.setAttribute('rotation', `${angle} 0 0`);
+                if (this.rightLeg) this.rightLeg.setAttribute('rotation', `${-angle} 0 0`);
+                if (this.leftArm) this.leftArm.setAttribute('rotation', `${-angle * 0.8} 0 0`);
+
+                // Torso slight vertical bounce
+                if (this.officerTorso) {
+                    const bounce = Math.abs(Math.sin(this.walkTime)) * 0.04;
+                    this.officerTorso.setAttribute('position', `0 ${0.85 + bounce} 0`);
+                }
+
+                // Audio Footsteps
+                this.footstepTimer += dt;
+                if (this.footstepTimer > 0.38) {
+                    this.footstepTimer = 0;
+                    window.soundEngine.playFootstep();
+                    triggerHaptic(0.15, 30);
+                }
+            },
+            startWalking: function () {
+                this.isWalking = true;
+                this.walkTime = 0;
+                this.footstepTimer = 0;
+            },
+            stopWalking: function () {
+                this.isWalking = false;
+                if (this.leftLeg) this.leftLeg.setAttribute('rotation', '0 0 0');
+                if (this.rightLeg) this.rightLeg.setAttribute('rotation', '0 0 0');
+            }
+        });
+
+        // Component to make items Grabbable with Smooth Physics Lerp
         AFRAME.registerComponent('grabbable-waste', {
             schema: {
                 wasteId: { type: 'string' }
@@ -684,17 +824,20 @@
                 const el = this.el;
                 this.wasteData = WASTE_DATABASE.find(w => w.id === this.data.wasteId) || WASTE_DATABASE[0];
                 this.isHeld = false;
+                this.hoverRing = el.querySelector('.item-glow-ring');
 
                 // Hover Effects
                 el.addEventListener('mouseenter', () => {
                     if (!window.gameState.heldItem && !window.gameState.isPunished && !this.isHeld) {
                         el.setAttribute('scale', '1.18 1.18 1.18');
+                        if (this.hoverRing) this.hoverRing.setAttribute('material', 'color: #38ef7d; opacity: 0.9');
                     }
                 });
 
                 el.addEventListener('mouseleave', () => {
                     if (window.gameState.heldItem !== el && !this.isHeld) {
                         el.setAttribute('scale', '1 1 1');
+                        if (this.hoverRing) this.hoverRing.setAttribute('material', 'color: #38bdf8; opacity: 0.6');
                     }
                 });
 
@@ -708,10 +851,8 @@
                 if (window.gameState.isPunished) return;
 
                 if (window.gameState.heldItem === this.el) {
-                    // Release back to table
                     this.releaseItem();
                 } else if (!window.gameState.heldItem) {
-                    // Pick up item
                     this.grabItem();
                 }
             },
@@ -726,14 +867,14 @@
                 const banner = document.getElementById('grab-banner');
                 const bannerText = document.getElementById('grab-banner-text');
                 if (banner && bannerText) {
-                    bannerText.innerHTML = `Holding: <strong>${this.wasteData.name}</strong> ➔ Aim at correct bin & click!`;
+                    bannerText.innerHTML = `Holding: <strong>${this.wasteData.name}</strong> ➔ Aim at correct bin & drop!`;
                     banner.style.display = 'flex';
                 }
 
-                // Remove .clickable while held so laser passes through cleanly to dustbins!
+                // Remove .clickable while held so raycaster hits bins cleanly
                 this.el.classList.remove('clickable');
 
-                // Attach to player view anchor
+                // Smoothly attach to player view anchor
                 const holder = document.getElementById('player-held-anchor');
                 if (holder) {
                     this.originalParent = this.el.parentNode;
@@ -742,30 +883,32 @@
                     holder.appendChild(this.el);
                     this.el.setAttribute('position', '0 0 0');
                     this.el.setAttribute('scale', '1.15 1.15 1.15');
+                    this.el.setAttribute('animation__held_bob', 'property: position; to: 0 0.05 0; dur: 1200; dir: alternate; loop: true; easing: easeInOutSine');
                 }
             },
 
             releaseItem: function () {
                 this.isHeld = false;
+                this.el.removeAttribute('animation__held_bob');
+
                 if (this.originalParent) {
                     this.originalParent.appendChild(this.el);
                     this.el.setAttribute('position', this.originalPosition || '0 0.95 -2.3');
                     this.el.setAttribute('scale', '1 1 1');
                 }
                 
-                // Re-enable clickability
                 this.el.classList.add('clickable');
-
                 window.gameState.heldItem = null;
+
                 const banner = document.getElementById('grab-banner');
                 if (banner) banner.style.display = 'none';
             }
         });
 
-        // Component for Dustbins
+        // Component for Dustbins with Smooth Physical Dropping
         AFRAME.registerComponent('dustbin-target', {
             schema: {
-                category: { type: 'string' }, // 'green', 'blue', 'yellow', 'red'
+                category: { type: 'string' },
                 binName: { type: 'string' }
             },
             init: function () {
@@ -793,10 +936,9 @@
                         const heldEl = window.gameState.heldItem;
                         const wasteComp = heldEl.components['grabbable-waste'];
                         if (wasteComp && wasteComp.wasteData) {
-                            this.evaluateDeposit(heldEl, wasteComp.wasteData);
+                            this.animateItemDropIntoBin(heldEl, wasteComp.wasteData);
                         }
                     } else if (!window.gameState.heldItem && !window.gameState.isPunished) {
-                        // Tactile lid bounce when tapping without item
                         if (lid) {
                             lid.setAttribute('animation', 'property: rotation; to: -30 0 0; dur: 120; dir: alternate; loop: 2; easing: easeInOutQuad');
                         }
@@ -806,8 +948,37 @@
                 });
             },
 
+            animateItemDropIntoBin: function (heldEl, wasteData) {
+                // Detach from camera anchor and position above bin opening
+                const binWorldPos = this.el.getAttribute('position');
+                const container = document.getElementById('ground-environment');
+                
+                heldEl.removeAttribute('animation__held_bob');
+                if (container) container.appendChild(heldEl);
+
+                heldEl.setAttribute('position', `${binWorldPos.x} ${binWorldPos.y + 1.5} ${binWorldPos.z}`);
+                heldEl.setAttribute('scale', '0.9 0.9 0.9');
+
+                // Smooth gravity drop into bin cylinder
+                heldEl.setAttribute('animation__drop', `property: position; to: ${binWorldPos.x} ${binWorldPos.y + 0.3} ${binWorldPos.z}; dur: 320; easing: easeInQuad`);
+
+                // Drop sound
+                setTimeout(() => {
+                    window.soundEngine.playItemDrop();
+                    triggerHaptic(0.4, 70);
+
+                    // Snap lid shut
+                    const lid = this.el.querySelector('.bin-lid');
+                    if (lid) lid.setAttribute('animation', 'property: rotation; to: 0 0 0; dur: 140; easing: easeInQuad');
+
+                    // Clean up and evaluate
+                    setTimeout(() => {
+                        this.evaluateDeposit(heldEl, wasteData);
+                    }, 120);
+                }, 300);
+            },
+
             evaluateDeposit: function (heldEl, wasteData) {
-                // Clear hold state
                 window.gameState.heldItem = null;
                 const banner = document.getElementById('grab-banner');
                 if (banner) banner.style.display = 'none';
@@ -817,10 +988,8 @@
                 }
 
                 if (wasteData.category === this.data.category) {
-                    // CORRECT SORT!
                     this.handleSuccess(wasteData);
                 } else {
-                    // WRONG SORT! Trigger comedic punishment
                     this.handleFailure(wasteData);
                 }
             },
@@ -832,20 +1001,16 @@
                 window.gameState.score += 100;
                 window.gameState.streak += 1;
                 
-                // Rank calculation
                 const rankIdx = Math.min(Math.floor(window.gameState.score / 300), window.gameState.rankNames.length - 1);
                 window.gameState.level = rankIdx + 1;
 
-                // Update 2D HUD
                 document.getElementById('hud-score').innerText = window.gameState.score;
                 document.getElementById('hud-streak').innerText = window.gameState.streak + 'x';
                 document.getElementById('hud-rank').innerText = window.gameState.rankNames[rankIdx];
 
-                // Update 3D Floating VR HUD
                 const vrScore = document.getElementById('vr-score-text');
                 if (vrScore) vrScore.setAttribute('value', `SCORE: ${window.gameState.score} | STREAK: ${window.gameState.streak}x`);
 
-                // Show reward toast
                 const toast = document.getElementById('reward-toast');
                 if (toast) {
                     toast.innerText = `+100 PTS! Perfect ${wasteData.name} Segregation!`;
@@ -853,7 +1018,6 @@
                     setTimeout(() => toast.classList.remove('show'), 1500);
                 }
 
-                // Trigger 3D Confetti / Star Particles at bin location
                 const confetti = document.getElementById('confetti-burst');
                 if (confetti) {
                     const binPos = this.el.getAttribute('position');
@@ -862,7 +1026,6 @@
                     setTimeout(() => confetti.setAttribute('visible', 'false'), 1200);
                 }
 
-                // Respawn new items after a short delay
                 setTimeout(() => {
                     const spawner = document.querySelector('[waste-spawner]');
                     if (spawner && spawner.components['waste-spawner']) {
@@ -876,55 +1039,8 @@
                 window.gameState.streak = 0;
                 document.getElementById('hud-streak').innerText = '0x';
 
-                // Play comedic fail audio
-                window.soundEngine.playFail();
-                triggerHaptic(0.9, 400);
-
-                // Trigger Dramatic Cinematic (NPC Rushes, Punches to Space)
-                const enforcerNpc = document.getElementById('civic-enforcer-npc');
-                const cameraRig = document.getElementById('camera-rig');
-                const spaceSky = document.getElementById('space-sky');
-                const groundEnv = document.getElementById('ground-environment');
-                const earthPlanet = document.getElementById('earth-planet');
-                const bloodOverlay = document.getElementById('blood-overlay');
-
-                // Step 1: NPC spawns directly in front of the player
-                if (enforcerNpc) {
-                    enforcerNpc.setAttribute('visible', 'true');
-                    enforcerNpc.setAttribute('position', '0 0.2 -2.5');
-                    enforcerNpc.setAttribute('animation__charge', 'property: position; to: 0 0.2 -1.2; dur: 450; easing: easeInQuad');
-                }
-
-                // Step 2: NPC Wind-up & Punch after 450ms
-                setTimeout(() => {
-                    window.soundEngine.playPunch();
-                    triggerHaptic(1.0, 500);
-
-                    document.body.classList.add('shake-screen');
-                    setTimeout(() => document.body.classList.remove('shake-screen'), 600);
-
-                    // Red blood vignette
-                    if (bloodOverlay) bloodOverlay.classList.add('active');
-
-                    // Step 3: Launch Player straight up into outer space!
-                    window.soundEngine.playSpaceWhoosh();
-
-                    if (cameraRig) {
-                        cameraRig.setAttribute('animation__space', 'property: position; to: 0 160 -5; dur: 3200; easing: easeOutExpo');
-                    }
-
-                    // Shift environment to space
-                    setTimeout(() => {
-                        if (groundEnv) groundEnv.setAttribute('visible', 'false');
-                        if (spaceSky) spaceSky.setAttribute('visible', 'true');
-                        if (earthPlanet) earthPlanet.setAttribute('visible', 'true');
-                        if (enforcerNpc) enforcerNpc.setAttribute('visible', 'false');
-
-                        // Show Game Over / Humorous Feedback 3D Board & 2D Modal
-                        showPunishmentFeedback(wasteData, this.data.binName);
-                    }, 1200);
-
-                }, 500);
+                // Human Officer approach & 3rd person slow-mo punch cinematic
+                startPunishmentSequence(wasteData, this.data.binName);
             }
         });
 
@@ -945,7 +1061,163 @@
             }
         });
 
-        // Function to render punishment dialogue and Try Again button
+        // CINEMATIC DRAMATIC SEQUENCE: Officer Walk -> 3rd-Person Slow-Mo Punch -> Multi-Stage Space Launch
+        function startPunishmentSequence(wrongItem, wrongBinName) {
+            const officerNpc = document.getElementById('human-officer-npc');
+            const officerComp = officerNpc ? officerNpc.components['human-officer-ai'] : null;
+            const rightGlove = document.getElementById('officer-boxing-glove');
+            const playerAvatar = document.getElementById('player-3rd-person-avatar');
+            const shockwave = document.getElementById('punch-shockwave');
+            const headCamera = document.getElementById('head-camera');
+            const cameraRig = document.getElementById('camera-rig');
+            const cinematicBars = document.getElementById('cinematic-bars');
+            const slowMoTag = document.getElementById('slowmo-tag');
+
+            // Speak stern dialogue
+            window.soundEngine.speakVoice("Halt citizen! That belongs in a completely different bin!");
+
+            // Step 1: Officer spawns at distance (8m away) and marches forward slowly
+            if (officerNpc) {
+                officerNpc.setAttribute('visible', 'true');
+                officerNpc.setAttribute('position', '0 0 -7.5');
+                officerNpc.setAttribute('rotation', '0 0 0');
+                if (officerComp) officerComp.startWalking();
+
+                // Smooth suspenseful walk over 3.2 seconds
+                officerNpc.setAttribute('animation__approach', 'property: position; to: 0 0 -1.6; dur: 3200; easing: easeOutQuad');
+            }
+
+            // Step 2: When officer arrives (at 3.2s) -> Switch to 3rd-Person Matrix-Style Slow-Motion View!
+            setTimeout(() => {
+                if (officerComp) officerComp.stopWalking();
+
+                // Enable Letterbox & Slow-mo tag
+                if (cinematicBars) cinematicBars.classList.add('active');
+                if (slowMoTag) slowMoTag.style.display = 'block';
+
+                // Make Player Avatar visible in 3rd person
+                if (playerAvatar) playerAvatar.setAttribute('visible', 'true');
+
+                // Move Camera to dramatic 3rd-person side angle
+                if (cameraRig) {
+                    cameraRig.setAttribute('position', '2.2 1.5 -1.2');
+                    cameraRig.setAttribute('rotation', '-5 55 0');
+                }
+
+                // Slow-Motion Wind-Up Audio & Glove Pullback
+                window.soundEngine.playSlowMoWindup();
+
+                if (rightGlove) {
+                    // Officer winds up punch in slow-mo
+                    rightGlove.setAttribute('animation__windup', 'property: position; to: 0.45 1.35 -0.3; dur: 1000; easing: easeOutSine');
+                }
+
+                // Step 3: Unleash Slow-Motion Punch (at +1000ms)
+                setTimeout(() => {
+                    if (rightGlove) {
+                        // Glove punches forward in slow motion
+                        rightGlove.setAttribute('animation__punch', 'property: position; to: 0.1 1.45 0.95; dur: 450; easing: easeInQuad');
+                    }
+
+                    // Punch Impact occurs (at +450ms)
+                    setTimeout(() => {
+                        window.soundEngine.playPunch();
+                        triggerHaptic(1.0, 500);
+                        document.body.classList.add('shake-screen');
+                        setTimeout(() => document.body.classList.remove('shake-screen'), 700);
+
+                        // Red blood vignette
+                        const bloodOverlay = document.getElementById('blood-overlay');
+                        if (bloodOverlay) bloodOverlay.classList.add('active');
+
+                        // Shockwave Expansion Highlight Ring
+                        if (shockwave) {
+                            shockwave.setAttribute('position', '0 1.45 -0.6');
+                            shockwave.setAttribute('visible', 'true');
+                            shockwave.setAttribute('animation__expand', 'property: scale; from: 0.1 0.1 0.1; to: 4 4 4; dur: 600; easing: easeOutQuad');
+                            shockwave.setAttribute('animation__fade', 'property: material.opacity; from: 0.9; to: 0; dur: 600; easing: easeOutQuad');
+                        }
+
+                        // Player Avatar reacts with recoil and flies upward
+                        if (playerAvatar) {
+                            playerAvatar.setAttribute('animation__recoil', 'property: rotation; to: -40 10 20; dur: 400; easing: easeOutQuad');
+                            playerAvatar.setAttribute('animation__fly', 'property: position; to: 0 45 8; dur: 2200; easing: easeInQuad');
+                        }
+
+                        // Step 4: Transition to Multi-Stage Atmospheric Space Flight
+                        setTimeout(() => {
+                            // Turn off 3rd person avatar & cinematic bars
+                            if (cinematicBars) cinematicBars.classList.remove('active');
+                            if (slowMoTag) slowMoTag.style.display = 'none';
+                            if (playerAvatar) playerAvatar.setAttribute('visible', 'false');
+                            if (shockwave) shockwave.setAttribute('visible', 'false');
+
+                            // Reset Rig orientation and attach to upward flight
+                            if (cameraRig) {
+                                cameraRig.setAttribute('rotation', '0 0 0');
+                                cameraRig.setAttribute('position', '0 1.6 0');
+                            }
+
+                            // Start multi-stage space launch
+                            executeMultiStageSpaceLaunch(wrongItem, wrongBinName);
+
+                        }, 700);
+
+                    }, 450);
+
+                }, 1000);
+
+            }, 3200);
+        }
+
+        // Multi-Stage Ascent from Ground Plaza -> Clouds -> Stratosphere -> Deep Orbit
+        function executeMultiStageSpaceLaunch(wrongItem, wrongBinName) {
+            const cameraRig = document.getElementById('camera-rig');
+            const groundEnv = document.getElementById('ground-environment');
+            const cloudsLayer = document.getElementById('clouds-layer');
+            const skyDome = document.getElementById('sky-dome');
+            const spaceSky = document.getElementById('space-sky');
+            const earthPlanet = document.getElementById('earth-planet');
+            const officerNpc = document.getElementById('human-officer-npc');
+
+            if (officerNpc) officerNpc.setAttribute('visible', 'false');
+            if (cloudsLayer) cloudsLayer.setAttribute('visible', 'true');
+
+            // Play Atmospheric Rocket / Wind Whoosh
+            window.soundEngine.playAtmosphericLaunch();
+
+            // Phase 1 (0 to 1.5s): Shoot up through clouds to 50m
+            if (cameraRig) {
+                cameraRig.setAttribute('animation__launch1', 'property: position; to: 0 60 -1; dur: 1800; easing: easeInQuad');
+            }
+
+            // Phase 2 (1.8s): Stratosphere darkening (Sky shifts from Cyan to Dark Indigo)
+            setTimeout(() => {
+                if (skyDome) {
+                    skyDome.setAttribute('animation__darken', 'property: color; from: #0f172a; to: #020617; dur: 1400; easing: easeInOutQuad');
+                }
+
+                // Phase 3 (3.0s): Ascend into Deep Space Orbit (170m)
+                if (cameraRig) {
+                    cameraRig.setAttribute('animation__launch2', 'property: position; to: 0 170 -6; dur: 2200; easing: easeOutQuad');
+                }
+
+                setTimeout(() => {
+                    // Now fully in deep space
+                    if (groundEnv) groundEnv.setAttribute('visible', 'false');
+                    if (cloudsLayer) cloudsLayer.setAttribute('visible', 'false');
+                    if (spaceSky) spaceSky.setAttribute('visible', 'true');
+                    if (earthPlanet) earthPlanet.setAttribute('visible', 'true');
+
+                    // Show Humorous Educational Failure Feedback
+                    showPunishmentFeedback(wrongItem, wrongBinName);
+
+                }, 2200);
+
+            }, 1800);
+        }
+
+        // Render failure dialogue and Try Again options
         function showPunishmentFeedback(wrongItem, wrongBinName) {
             const vrFailBoard = document.getElementById('vr-failure-board');
             if (vrFailBoard) {
@@ -976,7 +1248,6 @@
             window.soundEngine.playPop();
             triggerHaptic(0.5, 100);
 
-            // Hide Failure Modal & Blood
             const modal2D = document.getElementById('punishment-modal');
             if (modal2D) modal2D.style.display = 'none';
 
@@ -986,29 +1257,47 @@
             const vrFailBoard = document.getElementById('vr-failure-board');
             if (vrFailBoard) vrFailBoard.setAttribute('visible', 'false');
 
-            // Bring Camera back to Earth
             const cameraRig = document.getElementById('camera-rig');
             const spaceSky = document.getElementById('space-sky');
             const groundEnv = document.getElementById('ground-environment');
             const earthPlanet = document.getElementById('earth-planet');
+            const skyDome = document.getElementById('sky-dome');
+            const playerAvatar = document.getElementById('player-3rd-person-avatar');
+            const officerNpc = document.getElementById('human-officer-npc');
+
+            if (playerAvatar) {
+                playerAvatar.setAttribute('position', '0 0.85 -1.2');
+                playerAvatar.setAttribute('rotation', '0 0 0');
+                playerAvatar.setAttribute('visible', 'false');
+            }
+
+            if (officerNpc) {
+                officerNpc.setAttribute('position', '0 0 -7.5');
+                officerNpc.setAttribute('visible', 'false');
+            }
+
+            if (skyDome) skyDome.setAttribute('color', '#0f172a');
 
             if (cameraRig) {
-                cameraRig.removeAttribute('animation__space');
-                cameraRig.setAttribute('animation__return', 'property: position; to: 0 1.6 0; dur: 1200; easing: easeInOutQuad');
+                cameraRig.removeAttribute('animation__launch1');
+                cameraRig.removeAttribute('animation__launch2');
+                cameraRig.setAttribute('animation__return', 'property: position; to: 0 1.6 0; dur: 1400; easing: easeInOutQuad');
             }
 
             setTimeout(() => {
                 if (groundEnv) groundEnv.setAttribute('visible', 'true');
                 if (spaceSky) spaceSky.setAttribute('visible', 'false');
                 if (earthPlanet) earthPlanet.setAttribute('visible', 'false');
-                if (cameraRig) cameraRig.setAttribute('position', '0 1.6 0');
+                if (cameraRig) {
+                    cameraRig.setAttribute('position', '0 1.6 0');
+                    cameraRig.setAttribute('rotation', '0 0 0');
+                }
 
-                // Respawn fresh batch of waste items
                 const spawner = document.querySelector('[waste-spawner]');
                 if (spawner && spawner.components['waste-spawner']) {
                     spawner.components['waste-spawner'].respawnAll();
                 }
-            }, 1200);
+            }, 1400);
         }
 
         // Waste Item Spawner Component
@@ -1058,7 +1347,7 @@
                 itemEntity.setAttribute('class', 'clickable grabbable');
                 itemEntity.setAttribute('grabbable-waste', `wasteId: ${wasteData.id}`);
 
-                // Generous invisible raycast collider box for effortless Quest laser targeting
+                // Generous invisible raycast collider box for effortless laser targeting
                 itemEntity.setAttribute('geometry', 'primitive: box; width: 0.45; height: 0.45; depth: 0.45');
                 itemEntity.setAttribute('material', 'opacity: 0; transparent: true; depthWrite: false');
 
@@ -1125,11 +1414,11 @@
                         break;
                 }
 
-                // Add 3D Name Tag above item
+                // Add 3D Name Tag & Glowing Base Ring
                 visualMarkup += `
                     <a-text value="${wasteData.name}" position="0 0.28 0" align="center" width="1.8" color="#ffffff" 
                             font="mozillavr" background-color="#0f172a" background-padding="0.05" background-opacity="0.85"></a-text>
-                    <a-ring position="0 -0.01 0" rotation="-90 0 0" radius-inner="0.12" radius-outer="0.16" color="#38bdf8" opacity="0.7"></a-ring>
+                    <a-ring class="item-glow-ring" position="0 -0.01 0" rotation="-90 0 0" radius-inner="0.12" radius-outer="0.16" color="#38bdf8" opacity="0.6"></a-ring>
                 `;
 
                 itemEntity.innerHTML = visualMarkup;
@@ -1184,7 +1473,7 @@
                     <div class="legend-item bg-red">🔴 Glass & Metal</div>
                 </div>
                 <div class="control-tip">
-                    🎮 <strong>Controls:</strong> Click / Laser Trigger to pick up waste, then click the correct bin. Don't make mistakes or the Civic Enforcer will punch you into space!
+                    🎮 <strong>Controls:</strong> Click / Laser Trigger to pick up waste, then click the correct bin. Don't make mistakes or the Human Civic Officer will show up!
                 </div>
             </div>
 
@@ -1195,6 +1484,13 @@
             </div>
         </div>
     </div>
+
+    <!-- Cinematic Slow-Motion Letterbox Bars & Tag -->
+    <div id="cinematic-bars">
+        <div class="cinematic-bar"></div>
+        <div class="cinematic-bar"></div>
+    </div>
+    <div id="slowmo-tag">⏱️ SLOW MOTION HIGHLIGHT</div>
 
     <!-- Blood / Punished Vignette Screen Overlay -->
     <div id="blood-overlay"></div>
@@ -1224,7 +1520,7 @@
              raycaster="objects: .clickable; interval: 40"
              vr-mode-ui="enabled: true">
 
-        <!-- CAMERA RIG (Supports Desktop WASD/Mouse & Meta Quest Controllers) -->
+        <!-- CAMERA RIG (Supports Desktop WASD/Mouse, 3rd-Person Cinematic & Meta Quest Controllers) -->
         <a-entity id="camera-rig" position="0 1.6 0">
             <!-- Head Camera -->
             <a-camera id="head-camera" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 18">
@@ -1233,7 +1529,6 @@
             </a-camera>
 
             <!-- Meta Quest VR Controllers (Laser Pointers & Grasping) -->
-            <!-- Right Controller -->
             <a-entity id="right-hand"
                       laser-controls="hand: right"
                       raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.85"
@@ -1241,7 +1536,6 @@
                       vr-controller-interactor="hand: right">
             </a-entity>
 
-            <!-- Left Controller -->
             <a-entity id="left-hand"
                       laser-controls="hand: left"
                       raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.85"
@@ -1259,7 +1553,7 @@
         <!-- GROUND ENVIRONMENT (Eco Plaza / Park) -->
         <a-entity id="ground-environment" visible="true">
             <!-- Sky Dome -->
-            <a-sky color="#0f172a"></a-sky>
+            <a-sky id="sky-dome" color="#0f172a"></a-sky>
 
             <!-- Eco Plaza Flooring -->
             <a-cylinder position="0 -0.05 0" radius="18" height="0.1" color="#1e293b" roughness="0.8"></a-cylinder>
@@ -1288,17 +1582,12 @@
 
             <!-- SORTING TABLE / PODIUM FOR ITEMS -->
             <a-entity id="sorting-table" position="0 0 -2.3">
-                <!-- Table Top -->
                 <a-box position="0 0.85 0" width="3.2" height="0.1" depth="1.0" color="#1e293b" metalness="0.5" roughness="0.4"></a-box>
-                <!-- Neon Glow Edge -->
                 <a-box position="0 0.85 0.51" width="3.2" height="0.04" depth="0.02" color="#38bdf8" material="shader: flat"></a-box>
-                <!-- Table Legs -->
                 <a-cylinder position="-1.4 0.42 0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-cylinder position="1.4 0.42 0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-cylinder position="-1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
                 <a-cylinder position="1.4 0.42 -0.35" radius="0.06" height="0.85" color="#0f172a" metalness="0.7"></a-cylinder>
-                
-                <!-- Table Instruction Text -->
                 <a-text value="AIM & CLICK ITEMS TO PICK UP ➔ CLICK BIN TO SORT" position="0 0.92 0.4" rotation="-60 0 0" align="center" width="2.6" color="#94a3b8" font="mozillavr"></a-text>
             </a-entity>
 
@@ -1308,17 +1597,13 @@
                       geometry="primitive: cylinder; radius: 0.52; height: 1.4"
                       material="opacity: 0; transparent: true; depthWrite: false"
                       dustbin-target="category: green; binName: Green Bin (Organic)">
-                <!-- Bin Body -->
                 <a-cylinder radius="0.38" height="1.1" color="#10b981" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
                 <a-cylinder radius="0.4" height="0.08" color="#059669" position="0 0.55 0"></a-cylinder>
-                <!-- Interactive Lid -->
                 <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#047857" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#34d399" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
-                <!-- Neon Ring -->
                 <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#34d399" material="shader: flat"></a-torus>
-                <!-- 3D Label & Icon -->
                 <a-text value="ORGANIC" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
                 <a-text value="GREEN: WET / FOOD" position="0 -0.1 0.4" align="center" width="1.8" color="#a7f3d0" font="mozillavr"></a-text>
             </a-entity>
@@ -1328,17 +1613,13 @@
                       geometry="primitive: cylinder; radius: 0.52; height: 1.4"
                       material="opacity: 0; transparent: true; depthWrite: false"
                       dustbin-target="category: blue; binName: Blue Bin (Paper)">
-                <!-- Bin Body -->
                 <a-cylinder radius="0.38" height="1.1" color="#3b82f6" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
                 <a-cylinder radius="0.4" height="0.08" color="#2563eb" position="0 0.55 0"></a-cylinder>
-                <!-- Interactive Lid -->
                 <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#1d4ed8" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#60a5fa" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
-                <!-- Neon Ring -->
                 <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#60a5fa" material="shader: flat"></a-torus>
-                <!-- 3D Label & Icon -->
                 <a-text value="PAPER" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
                 <a-text value="BLUE: DRY / BOX" position="0 -0.1 0.4" align="center" width="1.8" color="#bfdbfe" font="mozillavr"></a-text>
             </a-entity>
@@ -1348,17 +1629,13 @@
                       geometry="primitive: cylinder; radius: 0.52; height: 1.4"
                       material="opacity: 0; transparent: true; depthWrite: false"
                       dustbin-target="category: yellow; binName: Yellow Bin (Plastic)">
-                <!-- Bin Body -->
                 <a-cylinder radius="0.38" height="1.1" color="#f59e0b" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
                 <a-cylinder radius="0.4" height="0.08" color="#d97706" position="0 0.55 0"></a-cylinder>
-                <!-- Interactive Lid -->
                 <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#b45309" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#fcd34d" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
-                <!-- Neon Ring -->
                 <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#fbbf24" material="shader: flat"></a-torus>
-                <!-- 3D Label & Icon -->
                 <a-text value="PLASTIC" position="0 0.15 0.4" align="center" width="2.5" color="#ffffff" font="mozillavr"></a-text>
                 <a-text value="YELLOW: BOTTLE / BAG" position="0 -0.1 0.4" align="center" width="1.8" color="#fde68a" font="mozillavr"></a-text>
             </a-entity>
@@ -1368,17 +1645,13 @@
                       geometry="primitive: cylinder; radius: 0.52; height: 1.4"
                       material="opacity: 0; transparent: true; depthWrite: false"
                       dustbin-target="category: red; binName: Red Bin (Hazardous/Glass/Metal)">
-                <!-- Bin Body -->
                 <a-cylinder radius="0.38" height="1.1" color="#ef4444" metalness="0.2" roughness="0.5" position="0 0 0"></a-cylinder>
                 <a-cylinder radius="0.4" height="0.08" color="#dc2626" position="0 0.55 0"></a-cylinder>
-                <!-- Interactive Lid -->
                 <a-entity class="bin-lid" position="0 0.59 -0.38">
                     <a-cylinder radius="0.38" height="0.06" color="#b91c1c" position="0 0 0.38"></a-cylinder>
                     <a-sphere radius="0.06" color="#f87171" position="0 0.05 0.38"></a-sphere>
                 </a-entity>
-                <!-- Neon Ring -->
                 <a-torus radius="0.39" radius-tubular="0.015" rotation="90 0 0" position="0 0 0" color="#f87171" material="shader: flat"></a-torus>
-                <!-- 3D Label & Icon -->
                 <a-text value="HAZARDOUS" position="0 0.15 0.4" align="center" width="2.3" color="#ffffff" font="mozillavr"></a-text>
                 <a-text value="RED: GLASS / E-WASTE" position="0 -0.1 0.4" align="center" width="1.7" color="#fecaca" font="mozillavr"></a-text>
             </a-entity>
@@ -1396,74 +1669,138 @@
             </a-entity>
         </a-entity>
 
-        <!-- ANGRY CIVIC SENSE ENFORCER NPC -->
-        <a-entity id="civic-enforcer-npc" visible="false" position="0 0.2 -2.5">
-            <!-- Cybernetic Body -->
-            <a-cylinder position="0 1.2 0" radius="0.35" height="0.9" color="#1e293b" metalness="0.8" roughness="0.2"></a-cylinder>
-            <!-- Badge / Eco Emblem -->
-            <a-circle position="0 1.35 0.36" radius="0.12" color="#ef4444"></a-circle>
-            <a-text value="CIVIC POLICE" position="0 1.35 0.37" align="center" width="1.6" color="#ffffff" font="mozillavr"></a-text>
+        <!-- 3D PLAYER AVATAR (Visible during 3rd-Person Cinematic Slow-Mo Punch) -->
+        <a-entity id="player-3rd-person-avatar" visible="false" position="0 0 -0.85">
+            <!-- Player Head -->
+            <a-sphere position="0 1.65 0" radius="0.18" color="#fbcfe8"></a-sphere>
+            <a-sphere position="0 1.76 -0.02" radius="0.19" color="#475569"></a-sphere> <!-- Hair -->
+            <!-- Player Torso (Casual Hoodie) -->
+            <a-box position="0 1.25 0" width="0.46" height="0.6" depth="0.26" color="#0284c7"></a-box>
+            <!-- Player Arms -->
+            <a-cylinder position="-0.3 1.2 0" radius="0.07" height="0.5" color="#0369a1"></a-cylinder>
+            <a-cylinder position="0.3 1.2 0" radius="0.07" height="0.5" color="#0369a1"></a-cylinder>
+            <!-- Player Legs -->
+            <a-cylinder position="-0.14 0.5 0" radius="0.09" height="0.75" color="#1e293b"></a-cylinder>
+            <a-cylinder position="0.14 0.5 0" radius="0.09" height="0.75" color="#1e293b"></a-cylinder>
+        </a-entity>
 
-            <!-- Head & Angry Glowing Visor -->
-            <a-sphere position="0 1.85 0" radius="0.28" color="#0f172a" metalness="0.7"></a-sphere>
-            <a-box position="0 1.87 0.22" width="0.36" height="0.12" depth="0.08" color="#ef4444" material="shader: flat; opacity: 0.95"></a-box>
-            <!-- Glowing Red Eyes -->
-            <a-sphere position="-0.08 1.87 0.27" radius="0.03" color="#ff0000" material="shader: flat"></a-sphere>
-            <a-sphere position="0.08 1.87 0.27" radius="0.03" color="#ff0000" material="shader: flat"></a-sphere>
+        <!-- STYLIZED HUMAN 3D CIVIC SENSE OFFICER NPC -->
+        <a-entity id="human-officer-npc" visible="false" position="0 0 -7.5" human-officer-ai>
+            
+            <!-- OFFICER TORSO & UNIFORM -->
+            <a-entity class="officer-torso" position="0 0.85 0">
+                <!-- Shirt / Jacket -->
+                <a-box position="0 0.4 0" width="0.55" height="0.65" depth="0.3" color="#1e3a8a" roughness="0.6"></a-box>
+                <!-- Shoulder Epaulets -->
+                <a-box position="-0.28 0.7 0" width="0.12" height="0.04" depth="0.22" color="#fbbf24"></a-box>
+                <a-box position="0.28 0.7 0" width="0.12" height="0.04" depth="0.22" color="#fbbf24"></a-box>
+                <!-- Gold Police Badge -->
+                <a-cylinder position="-0.14 0.52 0.16" rotation="90 0 0" radius="0.05" height="0.02" color="#fbbf24" metalness="0.8"></a-cylinder>
+                <!-- Black Tie -->
+                <a-box position="0 0.42 0.16" width="0.08" height="0.4" depth="0.02" color="#0f172a"></a-box>
+                <!-- Utility Belt with Golden Buckle -->
+                <a-box position="0 0.08 0" width="0.56" height="0.1" depth="0.32" color="#0f172a"></a-box>
+                <a-box position="0 0.08 0.17" width="0.12" height="0.08" depth="0.02" color="#f59e0b" metalness="0.8"></a-box>
 
-            <!-- Shoulders & Punching Arm -->
-            <a-sphere position="-0.45 1.5 0" radius="0.16" color="#334155"></a-sphere>
-            <a-sphere position="0.45 1.5 0" radius="0.16" color="#334155"></a-sphere>
+                <!-- OFFICER HEAD & CAP -->
+                <a-entity position="0 0.95 0">
+                    <!-- Head & Skin -->
+                    <a-sphere radius="0.2" color="#fbcfe8" roughness="0.5"></a-sphere>
+                    <!-- Mustache -->
+                    <a-box position="0 -0.04 0.19" width="0.16" height="0.04" depth="0.03" color="#334155"></a-box>
+                    <!-- Angry Eyebrows -->
+                    <a-box position="-0.07 0.07 0.19" rotation="0 0 15" width="0.09" height="0.025" depth="0.02" color="#0f172a"></a-box>
+                    <a-box position="0.07 0.07 0.19" rotation="0 0 -15" width="0.09" height="0.025" depth="0.02" color="#0f172a"></a-box>
+                    <!-- Eyes -->
+                    <a-sphere position="-0.07 0.03 0.18" radius="0.025" color="#0f172a"></a-sphere>
+                    <a-sphere position="0.07 0.03 0.18" radius="0.025" color="#0f172a"></a-sphere>
 
-            <!-- Giant Red Boxing Glove -->
-            <a-entity position="0.45 1.35 0.4" rotation="20 0 0">
-                <a-cylinder radius="0.08" height="0.35" rotation="90 0 0" color="#334155"></a-cylinder>
-                <a-sphere position="0 0 0.3" radius="0.24" color="#dc2626" roughness="0.3"></a-sphere>
-                <a-cylinder position="0 -0.1 0.25" radius="0.08" height="0.18" color="#b91c1c"></a-cylinder>
+                    <!-- Police Officer Cap -->
+                    <a-cylinder position="0 0.16 0" radius="0.22" height="0.12" color="#0f172a"></a-cylinder>
+                    <a-cylinder position="0 0.23 0" radius="0.24" height="0.04" color="#1e3a8a"></a-cylinder>
+                    <!-- Cap Visor / Peak -->
+                    <a-cone position="0 0.12 0.18" rotation="45 0 0" radius-bottom="0.24" radius-top="0.15" height="0.08" color="#020617"></a-cone>
+                    <!-- Gold Cap Emblem -->
+                    <a-sphere position="0 0.2 0.22" radius="0.035" color="#fbbf24" metalness="0.9"></a-sphere>
+                </a-entity>
             </a-entity>
 
-            <!-- Left Arm Shield -->
-            <a-entity position="-0.45 1.35 0.2" rotation="-15 0 0">
-                <a-cylinder radius="0.07" height="0.3" rotation="45 0 0" color="#334155"></a-cylinder>
-                <a-box position="-0.1 0 0.2" width="0.1" height="0.45" depth="0.3" color="#0f172a"></a-box>
+            <!-- LEFT ARM (Pointing Accusing Finger) -->
+            <a-entity class="officer-left-arm" position="-0.38 1.45 0">
+                <a-cylinder position="0 -0.2 0.1" rotation="40 0 0" radius="0.075" height="0.45" color="#1e3a8a"></a-cylinder>
+                <a-sphere position="0 -0.42 0.28" radius="0.07" color="#fbcfe8"></a-sphere>
+                <!-- Pointing Finger -->
+                <a-cylinder position="0 -0.42 0.38" rotation="90 0 0" radius="0.02" height="0.14" color="#fbcfe8"></a-cylinder>
             </a-entity>
 
-            <!-- Legs -->
-            <a-cylinder position="-0.2 0.45 0" radius="0.1" height="0.75" color="#0f172a" metalness="0.6"></a-cylinder>
-            <a-cylinder position="0.2 0.45 0" radius="0.1" height="0.75" color="#0f172a" metalness="0.6"></a-cylinder>
+            <!-- RIGHT ARM (Cocked Boxing Glove) -->
+            <a-entity id="officer-boxing-glove" class="officer-right-arm" position="0.4 1.35 0.2">
+                <a-cylinder position="0 0 0" rotation="30 0 0" radius="0.08" height="0.4" color="#1e3a8a"></a-cylinder>
+                <!-- Giant Red Boxing Glove -->
+                <a-sphere position="0 -0.1 0.32" radius="0.26" color="#ef4444" roughness="0.3"></a-sphere>
+                <a-cylinder position="0 -0.1 0.18" rotation="90 0 0" radius="0.11" height="0.16" color="#dc2626"></a-cylinder>
+                <!-- White Glove Lace Stripe -->
+                <a-box position="0 -0.1 0.38" width="0.14" height="0.04" depth="0.06" color="#f8fafc"></a-box>
+            </a-entity>
+
+            <!-- LEGS & BOOTS -->
+            <!-- Left Leg -->
+            <a-entity class="officer-left-leg" position="-0.16 0.85 0">
+                <a-cylinder position="0 -0.4 0" radius="0.1" height="0.8" color="#1e293b"></a-cylinder>
+                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box> <!-- Boot -->
+            </a-entity>
+            <!-- Right Leg -->
+            <a-entity class="officer-right-leg" position="0.16 0.85 0">
+                <a-cylinder position="0 -0.4 0" radius="0.1" height="0.8" color="#1e293b"></a-cylinder>
+                <a-box position="0 -0.82 0.06" width="0.14" height="0.12" depth="0.25" color="#020617"></a-box> <!-- Boot -->
+            </a-entity>
+        </a-entity>
+
+        <!-- SLOW-MOTION PUNCH IMPACT SHOCKWAVE RING -->
+        <a-entity id="punch-shockwave" visible="false" position="0 1.45 -0.6">
+            <a-ring radius-inner="0.1" radius-outer="0.35" rotation="0 0 0" color="#ef4444" material="shader: flat; opacity: 0.9"></a-ring>
+            <a-ring radius-inner="0.3" radius-outer="0.55" rotation="0 0 0" color="#fbbf24" material="shader: flat; opacity: 0.8"></a-ring>
+        </a-entity>
+
+        <!-- PROCEDURAL 3D CLOUD LAYER (Passed during Phase 1 Ascent) -->
+        <a-entity id="clouds-layer" visible="false" position="0 35 0">
+            <a-sphere position="-12 0 -10" radius="6" color="#ffffff" opacity="0.6" material="transparent: true"></a-sphere>
+            <a-sphere position="10 4 -8" radius="7" color="#ffffff" opacity="0.55" material="transparent: true"></a-sphere>
+            <a-sphere position="0 8 12" radius="8" color="#ffffff" opacity="0.65" material="transparent: true"></a-sphere>
+            <a-sphere position="-8 -5 15" radius="5" color="#ffffff" opacity="0.5" material="transparent: true"></a-sphere>
         </a-entity>
 
         <!-- OUTER SPACE ENVIRONMENT (When Punched Into Space!) -->
         <a-entity id="space-sky" visible="false">
-            <!-- Dark Deep Space Sky -->
             <a-sky color="#020408"></a-sky>
 
             <!-- Starfield Clusters -->
-            <a-entity position="0 160 0">
-                <a-sphere radius="0.3" position="20 40 -30" color="#ffffff" material="shader: flat"></a-sphere>
-                <a-sphere radius="0.4" position="-40 30 -50" color="#93c5fd" material="shader: flat"></a-sphere>
-                <a-sphere radius="0.25" position="35 -20 -40" color="#fef08a" material="shader: flat"></a-sphere>
+            <a-entity position="0 170 0">
+                <a-sphere radius="0.35" position="20 40 -30" color="#ffffff" material="shader: flat"></a-sphere>
+                <a-sphere radius="0.45" position="-40 30 -50" color="#93c5fd" material="shader: flat"></a-sphere>
+                <a-sphere radius="0.3" position="35 -20 -40" color="#fef08a" material="shader: flat"></a-sphere>
                 <a-sphere radius="0.5" position="-25 60 40" color="#f472b6" material="shader: flat"></a-sphere>
-                <a-sphere radius="0.35" position="50 10 30" color="#a7f3d0" material="shader: flat"></a-sphere>
-                <a-sphere radius="0.3" position="-50 -30 -30" color="#ffffff" material="shader: flat"></a-sphere>
+                <a-sphere radius="0.4" position="50 10 30" color="#a7f3d0" material="shader: flat"></a-sphere>
+                <a-sphere radius="0.35" position="-50 -30 -30" color="#ffffff" material="shader: flat"></a-sphere>
+                <a-sphere radius="0.3" position="15 80 -15" color="#ffffff" material="shader: flat"></a-sphere>
             </a-entity>
         </a-entity>
 
-        <!-- PLANET EARTH SPHERE -->
-        <a-entity id="earth-planet" visible="false" position="0 100 -30" animation="property: rotation; to: 0 360 0; dur: 60000; loop: true; easing: linear">
-            <a-sphere radius="14" color="#1d4ed8" roughness="0.6">
+        <!-- PLANET EARTH SPHERE (Viewed in Orbit from Space) -->
+        <a-entity id="earth-planet" visible="false" position="0 110 -35" animation="property: rotation; to: 0 360 0; dur: 70000; loop: true; easing: linear">
+            <a-sphere radius="16" color="#1d4ed8" roughness="0.6">
                 <!-- Continents / Landmass Shapes -->
-                <a-sphere position="4 4 10" radius="4.5" color="#15803d" roughness="0.9"></a-sphere>
-                <a-sphere position="-6 2 9" radius="5.2" color="#16a34a" roughness="0.9"></a-sphere>
-                <a-sphere position="1 -5 10" radius="4.0" color="#047857" roughness="0.9"></a-sphere>
-                <a-sphere position="-7 -4 8" radius="3.8" color="#ca8a04" roughness="0.9"></a-sphere>
+                <a-sphere position="5 5 11" radius="5.2" color="#15803d" roughness="0.9"></a-sphere>
+                <a-sphere position="-7 3 10" radius="5.8" color="#16a34a" roughness="0.9"></a-sphere>
+                <a-sphere position="1 -6 12" radius="4.8" color="#047857" roughness="0.9"></a-sphere>
+                <a-sphere position="-8 -5 9" radius="4.2" color="#ca8a04" roughness="0.9"></a-sphere>
                 <!-- Atmosphere Cloud Glow Layer -->
-                <a-sphere radius="14.4" color="#38bdf8" opacity="0.35" material="transparent: true"></a-sphere>
+                <a-sphere radius="16.5" color="#38bdf8" opacity="0.38" material="transparent: true"></a-sphere>
             </a-sphere>
         </a-entity>
 
         <!-- IN-WORLD 3D VR FAILURE BOARD (Visible in Space for Quest VR & Desktop) -->
-        <a-entity id="vr-failure-board" visible="false" position="0 160 -9">
+        <a-entity id="vr-failure-board" visible="false" position="0 170 -10">
             <a-box width="7.5" height="4.5" depth="0.1" color="#0f172a" material="opacity: 0.95" position="0 0 0"></a-box>
             <a-box width="7.7" height="4.7" depth="0.05" color="#ef4444" position="0 0 -0.05"></a-box>
 
@@ -1471,7 +1808,7 @@
             <a-text id="vr-fail-desc" value="CRITICAL CIVIC FAILURE:\nYou put item into the wrong bin!" position="0 0.6 0.1" align="center" width="5.5" color="#f8fafc" font="mozillavr"></a-text>
             <a-text id="vr-fail-tip" value="CIVIC SENSE LESSON:\nSegregate properly to protect the environment." position="0 -0.4 0.1" align="center" width="4.8" color="#38bdf8" font="mozillavr"></a-text>
 
-            <!-- 3D Interactive Return Button for Quest Controller Raycaster & Mouse -->
+            <!-- 3D Interactive Return Button -->
             <a-entity id="vr-try-again-btn" class="clickable" position="0 -1.4 0.15"
                       geometry="primitive: box; width: 3.4; height: 0.65; depth: 0.15"
                       material="color: #10b981; metalness: 0.3; roughness: 0.4"
